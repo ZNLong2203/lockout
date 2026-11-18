@@ -1,0 +1,67 @@
+# ──────────────────────────────────────────────────────────────────────────
+# Sky's The Limit 2026 hackathon data: licensed, MUST NOT be committed.
+# Keep the data repo OUTSIDE this project and point STL_DATA_DIR at it.
+# ──────────────────────────────────────────────────────────────────────────
+stl-hackathon-2026-grid-starter/
+*.zst
+*.jsonl
+# Anything extracted or cached from the data
+*.parquet
+*.sqlite
+*.sqlite3
+*.duckdb
+*.duckdb.wal
+*.arrow
+*.feather
+*.npz
+*.npy
+.cache/
+cache/
+
+# ── Private working area (research notes, scratch, local caches, .env) ────
+private/
+
+# ── Secrets / local env ────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Python ─────────────────────────────────────────────────────────────────
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.egg-info/
+build/
+dist/
+
+# ── Node / web ─────────────────────────────────────────────────────────────
+node_modules/
+web/dist/
+web/.vite/
+*.tsbuildinfo
+
+# ── OS / editors ───────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── JetBrains: commit project config as evidence, ignore machine-local state
+.idea/workspace.xml
+.idea/usage.statistics.xml
+.idea/tasks.xml
+.idea/shelf/
+.idea/dictionaries/
+.idea/httpRequests/
+.idea/dataSources/
+.idea/dataSources.local.xml
+.idea/**/aws.xml
+.idea/**/sqlDataSources.xml
+.idea/**/dynamic.xml
+.idea/**/uiDesigner.xml
+.idea/**/dbnavigator.xml
+.idea/caches/
+.idea/copilot*/

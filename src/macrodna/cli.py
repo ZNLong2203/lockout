@@ -58,6 +58,7 @@ def etl(
 def detect() -> None:
     """Run the macro detectors over the cache and write their result tables."""
     from macrodna.detectors.jungle import write_jungle
+    from macrodna.detectors.objectives import write_objectives
 
     settings = load_settings()
     out = settings.cache_dir / "lol"
@@ -65,6 +66,7 @@ def detect() -> None:
         typer.secho("No cache found: run `macrodna etl` first.", fg=typer.colors.RED, err=True)
         raise typer.Exit(1)
     typer.echo(f"jungle fingerprints: {write_jungle(out)} junglers")
+    typer.echo(f"objective setups: {write_objectives(out)} team-objective rows")
 
 
 if __name__ == "__main__":

@@ -59,6 +59,7 @@ def detect() -> None:
     """Run the macro detectors over the cache and write their result tables."""
     from macrodna.detectors.jungle import write_jungle
     from macrodna.detectors.objectives import write_objectives
+    from macrodna.detectors.tells import write_tells
 
     settings = load_settings()
     out = settings.cache_dir / "lol"
@@ -67,6 +68,8 @@ def detect() -> None:
         raise typer.Exit(1)
     typer.echo(f"jungle fingerprints: {write_jungle(out)} junglers")
     typer.echo(f"objective setups: {write_objectives(out)} team-objective rows")
+    n_tells, n_evidence = write_tells(out)
+    typer.echo(f"tells: {n_tells} scored (team x template), {n_evidence} evidence rows")
 
 
 if __name__ == "__main__":

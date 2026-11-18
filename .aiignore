@@ -1,0 +1,10 @@
+# Keep licensed hackathon data and derived caches away from AI assistants and agents.
+private/
+stl-hackathon-2026-grid-starter/
+*.zst
+*.jsonl
+*.parquet
+*.duckdb
+*.sqlite
+.env
+.env.*

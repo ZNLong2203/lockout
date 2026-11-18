@@ -29,5 +29,30 @@ def doctor() -> None:
     typer.secho(f"OK: {n_series} LoL series files found.", fg=typer.colors.GREEN)
 
 
+@app.command()
+def etl(
+    limit: int = typer.Option(0, help="Only process the first N series (0 = all)."),
+    workers: int = typer.Option(0, help="Worker processes (0 = cores - 1)."),
+) -> None:
+    """Build the local Parquet cache (positions, events, draft) from the GRID feeds."""
+    from pathlib import Path
+
+    from macrodna.etl.build import build_cache
+    from macrodna.roles import write_roles
+
+    settings = load_settings()
+    summary = build_cache(settings, limit=limit or None, workers=workers or None)
+    typer.echo(
+        f"series={summary['series']} games={summary['games']} events={summary['events']} "
+        f"-> {summary['out']}"
+    )
+    n_roles = write_roles(Path(summary["out"]))
+    typer.echo(f"roles inferred for {n_roles // 5} team-games")
+    for series_id, err in summary["failures"]:
+        typer.secho(f"FAILED series {series_id}: {err}", fg=typer.colors.RED, err=True)
+    if summary["failures"]:
+        raise typer.Exit(1)
+
+
 if __name__ == "__main__":
     app()

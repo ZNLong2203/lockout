@@ -53,6 +53,72 @@ def lane_distance(xy: np.ndarray, lane: str) -> np.ndarray:
     return np.min(dists, axis=0)
 
 
+#: index of each team's outer (first) tower inside ``LANES[lane]`` (blue end first, red end last)
+OUTER_TOWER_INDEX: dict[str, dict[str, int]] = {
+    "top": {"blue": 3, "red": 5},
+    "mid": {"blue": 3, "red": 4},
+    "bot": {"blue": 3, "red": 5},
+}
+
+# Standard jungle camps in the blue-side frame, checked against jungler dwell points in the data
+# (e.g. the wolves cluster sits 135 units from this reference).
+JUNGLE_CAMPS: dict[str, tuple[float, float]] = {
+    "blue_buff": (3800.0, 7900.0),
+    "gromp": (2100.0, 8400.0),
+    "wolves": (3800.0, 6500.0),
+    "raptors": (6900.0, 5400.0),
+    "red_buff": (7800.0, 4000.0),
+    "krugs": (8400.0, 2700.0),
+}
+
+#: the map is symmetric under a half-turn about this centre, so a red-side point maps to the blue frame
+_SUM = (BLUE_NEXUS[0] + RED_NEXUS[0], BLUE_NEXUS[1] + RED_NEXUS[1])
+
+
+def to_blue_frame(xy: np.ndarray, side: str) -> np.ndarray:
+    """Express positions of a red-side player in the blue-side frame (identity for blue)."""
+    pts = np.asarray(xy, dtype=np.float64).reshape(-1, 2)
+    return pts if side == "blue" else np.column_stack([_SUM[0] - pts[:, 0], _SUM[1] - pts[:, 1]])
+
+
+def _cumulative(path: np.ndarray) -> np.ndarray:
+    return np.r_[0.0, np.cumsum(np.linalg.norm(np.diff(path, axis=0), axis=1))]
+
+
+def project_on_lane(xy: np.ndarray, lane: str) -> tuple[np.ndarray, np.ndarray]:
+    """Project points on a lane path. Returns ``(arc, dist)``: position along it from the blue end
+    and the distance to it."""
+    pts = np.asarray(xy, dtype=np.float64).reshape(-1, 2)
+    path = np.asarray(LANES[lane], dtype=np.float64)
+    cum = _cumulative(path)
+    best_d = np.full(len(pts), np.inf)
+    best_arc = np.zeros(len(pts))
+    for i in range(len(path) - 1):
+        a, b = path[i], path[i + 1]
+        ab = b - a
+        denom = float(ab @ ab)
+        t = np.clip(((pts - a) @ ab) / denom, 0.0, 1.0)
+        d = np.linalg.norm(pts - (a + t[:, None] * ab), axis=1)
+        closer = d < best_d
+        best_d = np.where(closer, d, best_d)
+        best_arc = np.where(closer, cum[i] + t * np.sqrt(denom), best_arc)
+    return best_arc, best_d
+
+
+def lane_progress_from_base(arc: np.ndarray, lane: str, side: str) -> np.ndarray:
+    """Distance travelled along ``lane`` away from the player's own base."""
+    total = _cumulative(np.asarray(LANES[lane], dtype=np.float64))[-1]
+    return arc if side == "blue" else total - arc
+
+
+def own_outer_tower_progress(lane: str, side: str) -> float:
+    """Progress (from the own base) at which the team's outer tower stands in ``lane``."""
+    path = np.asarray(LANES[lane], dtype=np.float64)
+    cum = _cumulative(path)
+    idx = OUTER_TOWER_INDEX[lane][side]
+    return float(cum[idx] if side == "blue" else cum[-1] - cum[idx])
+
+
 def nearest_lane_distance(xy: np.ndarray) -> np.ndarray:
     """Distance to the closest of the three lanes: small in lane, large in the jungle."""
     return np.min([lane_distance(xy, lane) for lane in LANE_NAMES], axis=0)

@@ -1,14 +1,93 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { DEMO_GAME_ID, fetchReplay, isLive } from "../api/client";
-import type { Replay } from "../api/types";
-import { replayLink } from "../lib/route";
+import { CalendarDays, Clock3, ExternalLink, Trophy } from "lucide-react";
+import { useEffect, useState } from "react";
+import { fetchContext, fetchReplay, isLive } from "../api/client";
+import type { Replay, TeamSummary } from "../api/types";
+import { clock, type PastGame } from "../lib/draft";
 import { ReplayPlayer } from "./ReplayPlayer";
+import { GameList } from "./TeamPage";
+import { TeamBadge, TeamSearch } from "./TeamSearch";
 
-/** The replay (3D or 2D) of one game, opened from the evidence behind a tell or by game id. */
-export function ReplayPage({ gameId, startAt }: { gameId: string | null; startAt: number }) {
+function GamePicker({ teams, ours }: { teams: TeamSummary[]; ours: string | null }) {
+  const [team, setTeam] = useState<TeamSummary | null>(null);
+  const [games, setGames] = useState<PastGame[] | null>(null);
+  useEffect(() => {
+    if (!team) return;
+    setGames(null);
+    let alive = true;
+    const other = ours && ours !== team.team_id ? ours : (teams.find((t) => t.team_id !== team.team_id)?.team_id ?? "");
+    fetchContext(other, team.team_id)
+      .then((c) => alive && setGames(c.opponent_recent))
+      .catch(() => alive && setGames([]));
+    return () => {
+      alive = false;
+    };
+  }, [team, ours, teams]);
+  return (
+    <section className="pick-team">
+      <h1>Watch a game</h1>
+      <p className="muted">Pick a team, then one of its recent games. Every player, once per second, on a 3D Rift.</p>
+      <TeamSearch teams={teams} size="lg" autoFocus onSelect={setTeam} placeholder="Search a team…" />
+      {team && (
+        <div className="picker-games">
+          <h2>
+            <TeamBadge team={team} size={26} /> {team.name}
+          </h2>
+          <GameList games={games} />
+        </div>
+      )}
+    </section>
+  );
+}
+
+function MatchBanner({ replay }: { replay: Replay }) {
+  const vod = [replay.blue_team, "vs", replay.red_team, replay.event ?? "", replay.started_at?.slice(0, 10) ?? "", replay.game_number ? `game ${replay.game_number}` : ""]
+    .filter(Boolean)
+    .join(" ");
+  const winner = replay.winner_side === "blue" ? replay.blue_team : replay.winner_side === "red" ? replay.red_team : null;
+  return (
+    <header className="match-banner">
+      <div className="mb-teams">
+        <span className="mb-team blue">
+          <TeamBadge team={{ team_id: `${replay.blue_team}-b`, name: replay.blue_team }} size={34} />
+          {replay.blue_team}
+        </span>
+        <span className="mb-vs">vs</span>
+        <span className="mb-team red">
+          {replay.red_team}
+          <TeamBadge team={{ team_id: `${replay.red_team}-r`, name: replay.red_team }} size={34} />
+        </span>
+      </div>
+      <div className="mb-meta">
+        {replay.event && <span>{replay.event}</span>}
+        {replay.started_at && (
+          <span>
+            <CalendarDays size={14} aria-hidden /> {replay.started_at.slice(0, 10)}
+          </span>
+        )}
+        {replay.game_number && <span>Game {replay.game_number}</span>}
+        <span>
+          <Clock3 size={14} aria-hidden /> {clock(replay.duration_s)}
+        </span>
+        {winner && (
+          <span>
+            <Trophy size={14} aria-hidden /> {winner}
+          </span>
+        )}
+        {isLive && (
+          <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(vod)}`} target="_blank" rel="noreferrer noopener">
+            Find the broadcast <ExternalLink size={13} aria-hidden />
+          </a>
+        )}
+        <a href="#/replay">Change game</a>
+      </div>
+    </header>
+  );
+}
+
+/** Pick a game, then watch it: 3D or 2D, live score, players, key moments. */
+export function ReplayPage({ gameId, startAt, teams, ours }: { gameId: string | null; startAt: number; teams: TeamSummary[]; ours: string | null }) {
   const [replay, setReplay] = useState<Replay | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [draft, setDraft] = useState("");
 
   useEffect(() => {
     setReplay(null);
@@ -23,50 +102,27 @@ export function ReplayPage({ gameId, startAt }: { gameId: string | null; startAt
     };
   }, [gameId]);
 
-  const open = (e: FormEvent) => {
-    e.preventDefault();
-    if (draft.trim()) window.location.hash = replayLink(draft.trim());
-  };
-
+  if (!gameId)
+    return (
+      <main className="app narrow">
+        <GamePicker teams={teams} ours={ours} />
+      </main>
+    );
   return (
     <main className="app">
-      <section className="card" aria-label="Replay">
-        <h2>Replay</h2>
-        <p className="sub">
-          Every player once per second, drawn on our own map. Open it from the games behind a tell on the Scouting page, or enter a game id.
-          {!isLive && " In demo mode every game opens the same synthetic replay."}
-        </p>
-        <form className="inline-form" onSubmit={open}>
-          <label>
-            Game id
-            <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={isLive ? "paste a game id" : DEMO_GAME_ID} />
-          </label>
-          <button type="submit">Open</button>
-          {!isLive && (
-            <a className="btn-link" href={replayLink(DEMO_GAME_ID)}>
-              Open the demo replay
-            </a>
-          )}
-        </form>
-      </section>
-      {gameId && !replay && !error && <p className="muted">Loading the replay…</p>}
+      {!replay && !error && <p className="muted">Loading the replay…</p>}
       {error && (
-        <p className="err" role="alert">
+        <p className="card err" role="alert">
           {error}
         </p>
       )}
       {replay && (
-        <section className="card" aria-label={`Game ${replay.game_id}`}>
-          <div className="replay-head">
-            <h2>
-              {replay.blue_team} <span className="muted">vs</span> {replay.red_team}
-            </h2>
-            <span className="muted">
-              game {replay.game_id} · series {replay.series_id}
-            </span>
-          </div>
-          <ReplayPlayer replay={replay} startAt={startAt} />
-        </section>
+        <>
+          <MatchBanner replay={replay} />
+          <section className="card replay-card" aria-label={`Game ${replay.game_id}`}>
+            <ReplayPlayer replay={replay} startAt={startAt} />
+          </section>
+        </>
       )}
     </main>
   );

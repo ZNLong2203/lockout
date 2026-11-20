@@ -91,7 +91,7 @@ export default function App() {
         {ready ? <DraftRoom teams={teams} matchup={matchup} onMatchup={onMatchup} /> : <main className="app"><p className="muted">Loading teams…</p></main>}
       </div>
       {route.page === "team" && <TeamPage teamId={route.team} tab={route.tab} teams={teams} ours={ours} />}
-      {route.page === "replay" && <ReplayPage gameId={route.game} startAt={route.t} />}
+      {route.page === "replay" && <ReplayPage gameId={route.game} startAt={route.t} teams={teams} ours={ours} />}
 
       <footer className="app legal">
         Lockout isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing

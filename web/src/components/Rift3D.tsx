@@ -1,7 +1,7 @@
 // A holographic 3D Summoner's Rift built from our measured geometry (no Riot map art), with optional live
 // players from a replay. Loaded lazily: three.js only downloads when a 3D view is opened.
 import { Billboard, Html, Line, OrbitControls, useTexture } from "@react-three/drei";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
@@ -318,7 +318,7 @@ function ChampToken({ url, color, position }: { url: string; color: string; posi
   );
 }
 
-function Players({ replay, t, trails, catalog }: { replay: Replay; t: number; trails: boolean; catalog: Catalog }) {
+function Players({ replay, t, trails, catalog, follow }: { replay: Replay; t: number; trails: boolean; catalog: Catalog; follow: number | null }) {
   const frame = frameAt(replay, t);
   return (
     <>
@@ -336,7 +336,7 @@ function Players({ replay, t, trails, catalog }: { replay: Replay; t: number; tr
             )}
             {url ? (
               <Suspense fallback={<mesh position={[x, 0.75, z]}><sphereGeometry args={[0.2, 16, 16]} /><meshBasicMaterial color={color} /></mesh>}>
-                <ChampToken url={url} color={color} position={[x, 0.75, z]} />
+                <ChampToken url={url} color={follow === p.slot ? "#ffe066" : color} position={[x, follow === p.slot ? 0.95 : 0.75, z]} />
               </Suspense>
             ) : (
               <mesh position={[x, 0.4, z]}>
@@ -363,6 +363,40 @@ function Players({ replay, t, trails, catalog }: { replay: Replay; t: number; tr
   );
 }
 
+
+const HOME_CAM = new THREE.Vector3(0, 12.5, 11.5);
+
+/** Follows one player smoothly; when the follow is cleared, glides back to the overview. */
+function CameraRig({ replay, t, follow }: { replay?: Replay; t: number; follow: number | null }) {
+  const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3; update: () => void } | null;
+  const camera = useThree((s) => s.camera);
+  const returning = useRef(false);
+  const last = useRef<number | null>(null);
+  const goal = useMemo(() => new THREE.Vector3(), []);
+  useFrame(() => {
+    if (!controls) return;
+    if (last.current !== follow) {
+      returning.current = follow === null && last.current !== null;
+      last.current = follow;
+    }
+    if (follow !== null && replay) {
+      const at = frameAt(replay, t)[replay.players.findIndex((p) => p.slot === follow)];
+      if (!at) return;
+      const [x, , z] = toWorld(at.x, at.y);
+      goal.set(x, 0, z);
+      controls.target.lerp(goal, 0.08);
+      camera.position.lerp(goal.clone().add(new THREE.Vector3(0, 6.2, 5.2)), 0.05);
+      controls.update();
+    } else if (returning.current) {
+      controls.target.lerp(goal.set(0, 0, 0), 0.06);
+      camera.position.lerp(HOME_CAM, 0.06);
+      controls.update();
+      if (camera.position.distanceTo(HOME_CAM) < 0.05) returning.current = false;
+    }
+  });
+  return null;
+}
+
 export interface Rift3DProps {
   catalog: Catalog;
   replay?: Replay;
@@ -375,11 +409,13 @@ export interface Rift3DProps {
   glowSide?: "blue" | "red";
   startTop?: number;
   className?: string;
+  /** Slot of the player the camera follows. */
+  follow?: number | null;
   /** Show camp and pit names (off during a replay to keep the map readable). */
   labels?: boolean;
 }
 
-export default function Rift3D({ catalog, replay, t = 0, trails = true, ambient = false, laneGlow, glowSide, startTop, className, labels = !replay }: Rift3DProps) {
+export default function Rift3D({ catalog, replay, t = 0, trails = true, ambient = false, laneGlow, glowSide, startTop, className, labels = !replay, follow = null }: Rift3DProps) {
   return (
     <div className={`rift3d ${className ?? ""}`}>
       <Canvas shadows camera={{ position: [0, 12.5, 11.5], fov: 42 }} dpr={[1, 2]} gl={{ antialias: true }}>
@@ -404,8 +440,9 @@ export default function Rift3D({ catalog, replay, t = 0, trails = true, ambient 
         <Pit at={PITS.dragon} label="dragon" />
         <Pit at={PITS.baron} label="baron" />
         <Camps glowSide={glowSide} startTop={startTop} labels={labels} />
-        {replay && <Players replay={replay} t={t} trails={trails} catalog={catalog} />}
-        <OrbitControls enablePan={false} minDistance={7} maxDistance={26} maxPolarAngle={1.25} autoRotate={ambient} autoRotateSpeed={0.35} />
+        {replay && <Players replay={replay} t={t} trails={trails} catalog={catalog} follow={follow} />}
+        <CameraRig replay={replay} t={t} follow={follow} />
+        <OrbitControls makeDefault enablePan={false} minDistance={7} maxDistance={26} maxPolarAngle={1.25} autoRotate={ambient} autoRotateSpeed={0.35} />
         <EffectComposer>
           <Bloom mipmapBlur intensity={0.7} luminanceThreshold={0.55} luminanceSmoothing={0.25} />
           <Vignette eskil={false} offset={0.2} darkness={0.75} />

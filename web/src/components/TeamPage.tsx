@@ -101,7 +101,7 @@ function TopChamps({ title, items }: { title: string; items: DraftTendencyItem[]
   );
 }
 
-function Games({ games }: { games: PastGame[] | null }) {
+export function GameList({ games }: { games: PastGame[] | null }) {
   if (!games) return <p className="muted">Loading games…</p>;
   if (!games.length) return <p className="muted">No recent games.</p>;
   return (
@@ -247,7 +247,7 @@ export function TeamPage({ teamId, tab, teams, ours }: Props) {
                 <TopChamps title="What they ban" items={[...tendencies.bans].sort((a, b) => b.count - a.count)} />
               </div>
             )}
-            <Games games={games ? games.slice(0, 3) : null} />
+            <GameList games={games ? games.slice(0, 3) : null} />
           </>
         )}
         {tab === "draft" && <Tendencies teamId={teamId} teamName={name} />}
@@ -258,7 +258,7 @@ export function TeamPage({ teamId, tab, teams, ours }: Props) {
           </>
         )}
         {tab === "tells" && profile && <Tells teamId={teamId} team={name} tells={profile.tells} />}
-        {tab === "games" && <Games games={games} />}
+        {tab === "games" && <GameList games={games} />}
         {!profile && !error && tab !== "draft" && tab !== "games" && <p className="muted">Loading…</p>}
       </div>
     </main>

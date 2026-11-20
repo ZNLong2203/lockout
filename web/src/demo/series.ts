@@ -1,7 +1,7 @@
 // SYNTHETIC demo series. Team names, players, pools and results are invented; nothing comes from the licensed
 // GRID data. The only real figures are the league-wide aggregates in `league_top3_share_by_game` (from the backtest).
 import type { GameDraft, PastGame, PlayerPool, SeriesContext, TeamCtx } from "../lib/draft";
-import type { Role } from "../api/types";
+import type { ChampionStats, Role, SeriesDraft, SeriesSummary } from "../api/types";
 
 type Raw = [string, Role, number, [string, number][]];
 
@@ -100,3 +100,73 @@ export const DEMO_SERIES: SeriesContext = {
   // League-wide share of picks that come from a player's top 3 champions, by game number (real aggregate).
   league_top3_share_by_game: [0.4, 0.31, 0.21, 0.14, 0.11],
 };
+
+// --- SYNTHETIC league meta and one finished demo series, for the co-pilot and the real-series replay ---------
+
+const G3: GameDraft = {
+  number: 3,
+  ourSide: "blue",
+  winner: "us",
+  steps: ["Rumble", "Kalista", "Wukong", "Azir", "Ryze", "Vi",
+    "Orianna", "Lucian", "Elise", "Varus", "Rell", "Camille",
+    "Ornn", "Bard", "Maokai", "Rakan",
+    "Corki", "Nocturne", "Sion", "Neeko"],
+};
+
+/** Invented league meta: every champion of the demo pools, in its player's role, with made-up rates. */
+export const DEMO_META: ChampionStats[] = (() => {
+  const out = new Map<string, ChampionStats>();
+  const GAMES = 400;
+  [...OURS.players, ...THEIRS.players].forEach((p, pi) =>
+    p.pool.forEach((e, i) => {
+      const picks = Math.round(e.share * 160) + ((pi * 7 + i * 3) % 11);
+      const bans = Math.round(e.share * 120) + ((pi + i) % 5) * 6;
+      const cur = out.get(e.champion);
+      if (cur && cur.picks >= picks) return;
+      out.set(e.champion, {
+        champion: e.champion,
+        games: GAMES,
+        picks,
+        bans,
+        presence: Math.min(1, (picks + bans) / GAMES),
+        wins: Math.round(picks * (0.44 + ((i * 13 + pi) % 12) / 100)),
+        win_rate: 0.44 + ((i * 13 + pi) % 12) / 100,
+        roles: { [p.role]: 1 },
+        role: p.role,
+      });
+    }),
+  );
+  return [...out.values()].sort((a, b) => b.presence - a.presence);
+})();
+
+export const DEMO_SERIES_LIST: SeriesSummary[] = [
+  {
+    series_id: "demo-series-1",
+    date: "2026-10-24",
+    event: "Demo Cup - Finals",
+    format: 3,
+    teams: [
+      { team_id: "alpha", name: "Team Alpha", wins: 2 },
+      { team_id: "bravo", name: "Team Bravo", wins: 1 },
+    ],
+    games: 3,
+  },
+];
+
+export function demoSeriesDraft(): SeriesDraft {
+  const { games: _games, ...context } = DEMO_SERIES;
+  return {
+    series: DEMO_SERIES_LIST[0] as SeriesSummary,
+    context: { ...context, format: 3 },
+    games: [G1, G2, G3].map((g) => ({
+      game_id: `demo-g${g.number}`,
+      game_number: g.number,
+      blue_team_id: g.ourSide === "blue" ? "alpha" : "bravo",
+      red_team_id: g.ourSide === "blue" ? "bravo" : "alpha",
+      winner_team_id: g.winner === "us" ? "alpha" : "bravo",
+      steps: g.steps,
+    })),
+    meta: DEMO_META,
+    notes: ["Synthetic demo series: teams, players and drafts are invented."],
+  };
+}

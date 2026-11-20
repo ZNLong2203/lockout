@@ -7,8 +7,10 @@ In Fearless Draft every champion picked in a game is locked for the rest of the 
 A player's comfortable pool shrinks game after game, and by game 3 or 4 some role is playing off its pool.
 Coaches track this in spreadsheets. Lockout reads the official GRID feeds (745 series, 1,739 games) and answers:
 
-- **Which of their roles runs out of champions first, and what would a ban take away?** Pool state per player, ban targets, and a Monte Carlo forecast of the series.
-- **And ours?** The same view for our own lineup: which champions to save for game 3 or 4.
+- **What should we do on this exact step?** A **draft co-pilot** gives three moves at each of the 20 steps: the best ones for us on our turn, the likeliest ones for them on theirs. Each comes with a one-line reason and its sample size. On 58 held-out real series it had the real choice in its top three **32 %** of the time, against 26 % for a league-meta baseline and about 2 % by chance ([how it was measured](docs/methodology.md#draft-co-pilot-step-by-step)).
+- **Which of their roles runs out of champions first, and what would a ban take away?** A **Fearless budget** table shows every player's comfort pool game by game: exact for games played, a Monte Carlo forecast after. Hovering a champion shows what picking it now costs both teams in later games.
+- **And ours?** The same view for our own lineup: which champions to save for game 3 or 4, plus a composition check (damage split, frontline, engage, range) under each side's picks.
+- **Would it have worked?** **Replay a real series** draft by draft: the co-pilot sees only what was known before game 1, and every step it called gets a check mark.
 - **What does that pick mean on the map?** A *macro bridge* from a jungle champion to how that jungler opens and where they show up first, from player trajectories.
 - **What are their tells?** Evidence-backed conditional behaviours (objective trades, jungle start versus first objective, first gank by lane), compared with the league and corrected for multiple comparisons. Every tell opens the games behind it, and each game opens in a **2D replay** at the moment it was triggered.
 - **What repeats in their drafts?** Pick and ban habits tested against the league, what their bans aim at, and how their picks shift as a Fearless series goes on.
@@ -21,6 +23,8 @@ See [docs/methodology.md](docs/methodology.md).
 | Fearless draft room | Team page | 3D replay |
 |---|---|---|
 | [![Draft room](docs/img/draft-room.jpg)](docs/img/draft-room.jpg) | [![Team page](docs/img/team.jpg)](docs/img/team.jpg) | [![Replay](docs/img/replay.jpg)](docs/img/replay.jpg) |
+| **Fearless budget (what-if on hover)** | **Real series replay, scored step by step** | |
+| [![Fearless budget](docs/img/budget.jpg)](docs/img/budget.jpg) | [![Real series replay](docs/img/series-replay.jpg)](docs/img/series-replay.jpg) | |
 
 *Screenshots show the built-in synthetic demo data: invented teams and numbers, nothing from the licensed data. The API's own documentation page is in [docs/img/api-docs.jpg](docs/img/api-docs.jpg).*
 
@@ -65,7 +69,8 @@ written to `private/cache/`, which is gitignored.
 **In PyCharm**, the shared run configurations in `.run/` do all of the above (including "Full stack (API + web live)").
 
 **Tests.** `uv run pytest` (Python, API and contract tests on synthetic data), `uv run ruff check src tests`,
-`cd web && npm test && npm run build`.
+`cd web && npm test && npm run build`. With the API running on the real data, `cd web && npm run eval:copilot` re-scores
+the co-pilot on real series (aggregate rates only).
 
 ## Documentation
 

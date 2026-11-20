@@ -92,6 +92,47 @@ What the backtest says (no look-ahead; reproduce with `lockout draft-build`):
 
 We present pool stress as a planning aid for choosing what to ban and what to save, not as a win-rate predictor.
 
+### Draft co-pilot (step by step)
+
+At each of the 20 steps the draft room shows three moves: the best ones for us on our turn, the likeliest ones for
+the opponent on theirs. Every card says why in one line and shows the sample it rests on.
+
+- **Picks** blend two distributions for each player whose role is still open: their own remaining pool (weight
+  0.2) and the league's picks in that role over the last 90 days (weight 0.8). For our picks, small bonuses favour a
+  champion that is also in an opponent's pool (deny) or fixes the composition (for example, magic damage after three
+  physical picks).
+- **Bans** add up three signals: the league ban rate, how much of an open player's remaining comfort the ban
+  removes (more when that pool is already thin), and, when predicting the opponent, their own recent bans.
+- **No look-ahead.** The real-series replay and the evaluation use a context the API builds from data *before*
+  game 1 of the series: lineups from game 1, pools as of its start, the opponent's earlier games, and league meta of
+  the 90 days before it.
+
+**How often is the real choice in the top three?** (`cd web && npm run eval:copilot`, against the local API)
+
+| Set | Series | Steps | Co-pilot top 3 | Baseline: 3 champions with the highest league presence |
+|---|---|---|---|---|
+| Tuning (Apr-Oct 2026) | 80 | 4,500 | 31.5 % | 25.6 % |
+| **Held out (Jan-Apr 2026)** | 58 | 3,179 | **32.1 %** | 25.8 % |
+
+The weights were picked on the most recent 80 series and then checked once on 58 older ones. Choosing three out
+of about 170 champions at random would score about 2 %. By step type on the held-out set: bans 31-34 %, picks
+31-33 %. Two findings shaped the model. First, the league's role meta predicts picks better than a player's own
+pool: under Fearless, pools run out and new champions appear (section above). Second, a recent 90-day meta window
+beat windows stretched to at least 100 or 300 games (30.5 % and 28.2 % held out), because the extra games come
+from older patches.
+
+This is a *prediction* metric. Our own recommendations are not meant to copy what teams did, so the same score is
+only a sanity check for them. Engage and the early/late power curve in the composition check come from a short
+editorial list; damage split, frontline and range come from Riot's Data Dragon classification.
+
+### Fearless budget
+
+The draft room re-runs the series Monte Carlo in the browser from the series as entered. It uses the same model as
+above, with each player's top 8 champions as their pool. The resulting table shows each player's comfort left at
+the start of every game: exact for games already played, forecast with the risk of being critical for later games.
+Hovering a champion re-runs the forecast as if it were picked now. Changes under 3 points are within simulation
+noise and are hidden.
+
 ## 6. Replay and evidence
 
 Every tell keeps each occurrence (game, trigger time, whether the team did what the tell says). The API serves those

@@ -110,3 +110,29 @@ export function banIdeas(states: RoleState[], k = 4): BanIdea[] {
 
 export const pct = (v: number) => `${Math.round(v * 100)}%`;
 export const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+
+/**
+ * Which player each pick most likely belongs to: greedy on pool share, then the champion's usual role
+ * (from league meta, if given) for picks outside every pool. Returns player_id -> champion.
+ */
+export function assignPicks(team: TeamCtx, picks: string[], roleOf?: (champion: string) => string | undefined): Map<string, string> {
+  const out = new Map<string, string>();
+  const pairs = team.players
+    .flatMap((p) => p.pool.filter((e) => picks.includes(e.champion)).map((e) => ({ p, c: e.champion, share: e.share })))
+    .sort((a, b) => b.share - a.share);
+  const done = new Set<string>();
+  for (const { p, c } of pairs) {
+    if (out.has(p.player_id) || done.has(c)) continue;
+    out.set(p.player_id, c);
+    done.add(c);
+  }
+  for (const c of picks.filter((x) => !done.has(x))) {
+    const role = roleOf?.(c);
+    const p = team.players.find((x) => !out.has(x.player_id) && x.role === role) ?? team.players.find((x) => !out.has(x.player_id));
+    if (p) {
+      out.set(p.player_id, c);
+      done.add(c);
+    }
+  }
+  return out;
+}

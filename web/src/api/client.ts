@@ -1,14 +1,17 @@
 import { DEMO_REPLAY_ID, demoReplay } from "../demo/replay";
 import { DEMO_TEAMS, demoEvidence, demoProfile, demoTendencies } from "../demo/scouting";
-import { DEMO_SERIES } from "../demo/series";
+import { DEMO_META, DEMO_SERIES, DEMO_SERIES_LIST, demoSeriesDraft } from "../demo/series";
 import type { SeriesContext } from "../lib/draft";
 import { MOCK_BACKTEST, mockPlan } from "./fixtures";
 import type {
+  ChampionStats,
   DraftBacktest,
   EvidenceItem,
   PlanQuery,
   Replay,
+  SeriesDraft,
   SeriesPlanResponse,
+  SeriesSummary,
   TeamDraftTendencies,
   TeamLogos,
   TeamProfile,
@@ -81,3 +84,19 @@ export const fetchTendencies = (teamId: string, scope: TendencyScope = "all"): P
 export const fetchReplay = (gameId: string): Promise<Replay> => (isLive ? getJson<Replay>(`/api/games/${enc(gameId)}/replay`) : demo(demoReplay));
 
 export const DEMO_GAME_ID = DEMO_REPLAY_ID;
+
+/** League meta per champion (90 days). Never fails: the co-pilot falls back to pools only. */
+export const fetchChampions = (): Promise<ChampionStats[]> =>
+  isLive ? getJson<ChampionStats[]>("/api/champions").catch(() => []) : Promise.resolve(DEMO_META);
+
+/** Finished real series, newest first, for a team (and optionally its opponent). */
+export function fetchSeriesList(team: string, opponent = ""): Promise<SeriesSummary[]> {
+  if (!isLive) return Promise.resolve(DEMO_SERIES_LIST);
+  const params = new URLSearchParams({ team, limit: "40" });
+  if (opponent) params.set("opponent", opponent);
+  return getJson<SeriesSummary[]>(`/api/series?${params}`);
+}
+
+/** A real series' drafts plus the context as it was before game 1. */
+export const fetchSeriesDraft = (seriesId: string, ours = ""): Promise<SeriesDraft> =>
+  isLive ? getJson<SeriesDraft>(`/api/series/${enc(seriesId)}/draft${ours ? `?ours=${enc(ours)}` : ""}`) : demo(demoSeriesDraft);

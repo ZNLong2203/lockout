@@ -9,6 +9,9 @@ interface Props {
   mark?: "ours" | "theirs" | "both";
   onClick?: () => void;
   caption?: string;
+  /** Co-pilot rank (1-3): ring and number on the portrait. */
+  rank?: number;
+  onHover?: (hovering: boolean) => void;
 }
 
 const LOCK = (
@@ -24,24 +27,34 @@ const STATE_TEXT: Record<Exclude<ChampState, undefined>, string> = {
   used: "already picked in this draft",
 };
 
-export function ChampIcon({ name, size = 40, state, mark, onClick, caption }: Props) {
+export function ChampIcon({ name, size = 40, state, mark, onClick, caption, rank, onHover }: Props) {
   const catalog = useCatalog();
   if (!name) return <span className="champ empty" style={{ width: size, height: size }} aria-label="empty slot" />;
   const src = iconUrl(catalog, name);
   const label = state ? `${name}, ${STATE_TEXT[state]}` : name;
   const body = (
     <>
-      <span className={`champ ${state ?? ""}`} style={{ width: size, height: size }}>
+      <span className={`champ ${state ?? ""} ${rank ? "ranked" : ""}`} style={{ width: size, height: size }}>
         {src ? <img src={src} alt="" width={size} height={size} loading="lazy" /> : <span className="champ-fallback">{name.slice(0, 2)}</span>}
         {state === "locked" && LOCK}
         {state === "banned" && <span className="champ-slash" aria-hidden />}
         {mark && <span className={`champ-mark ${mark}`} aria-hidden />}
+        {rank && <span className="champ-rank" aria-hidden>{rank}</span>}
       </span>
       {caption && <span className="champ-caption">{caption}</span>}
     </>
   );
   return onClick ? (
-    <button type="button" className="champ-btn" title={label} aria-label={label} onClick={onClick} disabled={state === "locked" || state === "used"}>
+    <button
+      type="button"
+      className="champ-btn"
+      title={label}
+      aria-label={label}
+      onClick={onClick}
+      onMouseEnter={onHover ? () => onHover(true) : undefined}
+      onMouseLeave={onHover ? () => onHover(false) : undefined}
+      disabled={state === "locked" || state === "used"}
+    >
       {body}
     </button>
   ) : (

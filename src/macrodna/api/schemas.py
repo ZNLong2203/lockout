@@ -16,6 +16,11 @@ Strength = Literal["strong", "suggestive", "typical"]
 Role = Literal["top", "jungle", "mid", "adc", "support", "unknown"]
 
 
+class Health(BaseModel):
+    status: Literal["ok"]
+    games: int = Field(description="Games in the cache")
+
+
 class TeamSummary(BaseModel):
     team_id: str
     name: str
@@ -136,6 +141,9 @@ class Replay(BaseModel):
     blue_team: str
     red_team: str
     winner_side: Side | None
+    event: str | None = Field(None, description="League and split, e.g. 'LCS - Split 2 2026'")
+    started_at: str | None = Field(None, description="ISO start time of the game (UTC)")
+    game_number: int | None = Field(None, description="Game number within the series")
 
 
 # --- Draft: Fearless pool planner and its backtest -------------------------------------------------
@@ -319,3 +327,52 @@ class SeriesContext(BaseModel):
     league_top3_share_by_game: list[float] = Field(
         description="From draft_backtest.json pick_depth.share_top3"
     )
+
+
+# --- Draft tendencies of one team: what repeats, and how the draft shifts in Fearless games -------------
+
+
+class DraftTendencyItem(BaseModel):
+    """A champion's ban or pick rate for the team next to the league rate. Show ``team_games`` as ``n``."""
+
+    champion: str
+    count: int
+    team_games: int
+    rate: float
+    league_rate: float
+    q: float = Field(description="Benjamini-Hochberg adjusted p-value against the league rate")
+    direction: Literal["above", "below"]
+    strength: Strength
+    evidence_game_ids: list[str] = Field(description="Games where it happened, newest last (max 8)")
+
+
+class BanTarget(BaseModel):
+    role: Role
+    team_share: float = Field(description="Share of the team's bans that aim at this role")
+    league_share: float
+    n: int = Field(description="The team's bans that could be read through a role")
+
+
+class FearlessShiftPoint(BaseModel):
+    game_number: int
+    picks: int = Field(description="Picks with a trusted pool; the sample size of the point")
+    mean_rank: float = Field(
+        description="Rank of the pick in the player's full pool (1 = most played)"
+    )
+    league_mean_rank: float | None
+    share_top3: float
+    league_share_top3: float | None
+    share_new: float = Field(description="Share of picks the player had never played before")
+    league_share_new: float | None
+
+
+class TeamDraftTendencies(BaseModel):
+    team_id: str
+    name: str
+    scope: Literal["all", "g1", "later"]
+    team_games: int
+    picks: list[DraftTendencyItem]
+    bans: list[DraftTendencyItem]
+    ban_targets: list[BanTarget]
+    fearless_shift: list[FearlessShiftPoint]
+    notes: list[str]

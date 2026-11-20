@@ -66,6 +66,23 @@ class PickIndex:
     def now(self) -> datetime:
         return max(p.t for p in self.picks)
 
+    def find_team(self, names: dict[str, str], query: str) -> tuple[str, str] | None:
+        """A team id, or part of a team name, to ``(team_id, name)``; ``None`` if nobody matches.
+
+        Only teams with picks qualify. When several share a name the most recently active one wins.
+        """
+        q = query.strip()
+        if not q:
+            return None
+        if q in names and q in self.by_team:
+            return q, names[q]
+        hits = [
+            (tid, n) for tid, n in names.items() if q.lower() in n.lower() and tid in self.by_team
+        ]
+        if not hits:
+            return None
+        return max(hits, key=lambda h: max(p.t for p in self.by_team[h[0]]))
+
 
 def team_state(index: PickIndex, team_id: str, unavailable: set[str], as_of: datetime) -> TeamState:
     runways: list[RoleRunway] = []

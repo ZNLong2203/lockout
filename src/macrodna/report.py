@@ -17,15 +17,10 @@ def team_names(settings: Settings) -> dict[str, str]:
 
 
 def resolve_team(settings: Settings, index: PickIndex, query: str) -> tuple[str, str]:
-    names = team_names(settings)
-    hits = [
-        (tid, n) for tid, n in names.items() if query.lower() in n.lower() and tid in index.by_team
-    ]
-    if not hits:
+    hit = index.find_team(team_names(settings), query)
+    if hit is None:
         raise typer.BadParameter(f"No team with picks matches '{query}'.")
-    # prefer the team with the most recent activity when several share a name
-    best = max(hits, key=lambda h: max(p.t for p in index.by_team[h[0]]))
-    return best
+    return hit
 
 
 def _team_block(state: TeamState, name: str) -> list[str]:

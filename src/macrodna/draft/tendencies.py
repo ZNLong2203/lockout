@@ -26,6 +26,7 @@ from macrodna.draft.analysis import _index
 from macrodna.draft.pools import PickRec, runway
 
 MIN_COUNT = 4  # a champion needs this many appearances (or this many expected) to be tested
+MIN_TEAM_GAMES = 6  # fewer games than this and a team gets no tendency report, never empty numbers
 SCOPES = ("all", "g1", "later")
 EVIDENCE_LIMIT = 8
 
@@ -179,3 +180,103 @@ def pick_depth_by_game(
             )
         )
     return out
+
+
+@dataclass(frozen=True, slots=True)
+class TendencyItem:
+    """One champion's ban or pick rate for the team, next to the league rate in the same scope."""
+
+    champion: str
+    count: int
+    team_games: int  # the sample size every rate must be shown with
+    rate: float
+    league_rate: float
+    q: float
+    direction: str
+    strength: str
+    evidence_game_ids: list[str]
+
+
+@dataclass(frozen=True, slots=True)
+class BanTarget:
+    role: str
+    team_share: float
+    league_share: float
+    n: int  # the team's bans read through this role
+
+
+@dataclass(frozen=True, slots=True)
+class ShiftPoint:
+    """How far down their pool the team reaches in game ``game_number``, beside the league."""
+
+    game_number: int
+    picks: int
+    mean_rank: float
+    league_mean_rank: float | None
+    share_top3: float
+    league_share_top3: float | None
+    share_new: float
+    league_share_new: float | None
+
+
+@dataclass(frozen=True, slots=True)
+class TendencyReport:
+    team_id: str
+    scope: str
+    team_games: int
+    picks: list[TendencyItem]
+    bans: list[TendencyItem]
+    ban_targets: list[BanTarget]
+    fearless_shift: list[ShiftPoint]
+    notes: list[str]
+
+
+def tendency_report(
+    rows: list[DraftRow],
+    picks: list[PickRec],
+    team_id: str,
+    scope: str = "all",
+    top: int = 8,
+) -> TendencyReport | None:
+    """Everything the draft room shows about a team's habits, or ``None`` below ``MIN_TEAM_GAMES``.
+
+    ``fearless_shift`` always covers every game number (the scope only filters ban/pick rates): the shift by
+    game is the point of the chart, and splitting it by scope would hide it.
+    """
+    if scope not in SCOPES:
+        raise ValueError(f"scope must be one of {SCOPES}, got {scope!r}")
+    tend = team_tendencies(rows, team_id, scope)
+    if not tend or tend[0].team_games < MIN_TEAM_GAMES:
+        return None
+
+    def items(action: str) -> list[TendencyItem]:
+        return [
+            TendencyItem(
+                t.champion, t.count, t.team_games, t.rate, t.league_rate, t.q, t.direction,
+                t.strength, list(t.evidence),
+            )
+            for t in [t for t in tend if t.action == action][:top]
+        ]  # fmt: skip
+
+    league = {d.game_number: d for d in pick_depth_by_game(picks)}
+    shift = []
+    for d in pick_depth_by_game(picks, team_id):
+        lg = league.get(d.game_number)
+        shift.append(
+            ShiftPoint(
+                d.game_number, d.picks, d.mean_rank, lg.mean_rank if lg else None, d.share_top3,
+                lg.share_top3 if lg else None, d.share_new, lg.share_new if lg else None,
+            )
+        )  # fmt: skip
+    targets = [
+        BanTarget(role, mine, lg, n)
+        for role, (mine, lg, n) in ban_role_targeting(rows, team_id, scope).items()
+    ]
+    notes = [
+        "Rates are tested against the league in the same scope with a Benjamini-Hochberg correction; "
+        "'typical' means no evidence the team differs from the league.",
+        "Pick depth counts only players with a trusted pool; read it with the number of picks (n).",
+    ]
+    return TendencyReport(
+        team_id, scope, tend[0].team_games, items("pick"), items("ban"), targets, shift, notes
+    )

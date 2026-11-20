@@ -134,24 +134,32 @@ def tendencies(
     from macrodna.draft.analysis import load_picks
     from macrodna.draft.planner import PickIndex
     from macrodna.draft.tendencies import (
-        ban_role_targeting,
+        MIN_TEAM_GAMES,
+        SCOPES,
         load_draft_rows,
-        pick_depth_by_game,
-        team_tendencies,
+        tendency_report,
     )
     from macrodna.report import resolve_team
 
+    if scope not in SCOPES:
+        raise typer.BadParameter(f"scope must be one of {', '.join(SCOPES)}")
     settings = load_settings()
     cache = settings.cache_dir / "lol"
     team_id, name = resolve_team(settings, PickIndex.load(cache), team)
-    rows = load_draft_rows(cache)
-    tend = team_tendencies(rows, team_id, scope)
-    typer.echo(f"== {name} ({scope}): {tend[0].team_games if tend else 0} games ==")
-    for action in ("ban", "pick"):
+    report = tendency_report(load_draft_rows(cache), load_picks(cache), team_id, scope, top)
+    if report is None:
+        typer.secho(
+            f"{name}: fewer than {MIN_TEAM_GAMES} games in scope '{scope}', no report.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(1)
+    typer.echo(f"== {name} ({scope}): {report.team_games} games ==")
+    for action, items in (("ban", report.bans), ("pick", report.picks)):
         typer.echo(
             f"\n-- most distinctive {action}s (rate vs league, q = false-discovery adjusted) --"
         )
-        for t in [t for t in tend if t.action == action][:top]:
+        for t in items:
             typer.echo(
                 f"  {t.champion:<14} {t.count:>3}/{t.team_games:<3} = {t.rate:>4.0%}  league {t.league_rate:>4.0%}  "
                 f"{t.direction:<5} q={t.q:.3f} [{t.strength}]"
@@ -159,19 +167,37 @@ def tendencies(
     typer.echo(
         "\n-- what their bans aim at (share of bans by the targeted champion's usual role) --"
     )
-    for role, (mine, league, n) in ban_role_targeting(rows, team_id, scope).items():
-        typer.echo(f"  {role:<8} {mine:>4.0%}  league {league:>4.0%}  (n={n})")
-    picks = load_picks(cache)
+    for b in report.ban_targets:
+        typer.echo(f"  {b.role:<8} {b.team_share:>4.0%}  league {b.league_share:>4.0%}  (n={b.n})")
     typer.echo(
         "\n-- Fearless shift: how far down their pool they reach (1 = most played champion) --"
     )
-    league_depth = {d.game_number: d for d in pick_depth_by_game(picks)}
-    for d in pick_depth_by_game(picks, team_id):
-        lg = league_depth.get(d.game_number)
+    for d in report.fearless_shift:
+        league_rank = f"{d.league_mean_rank:.1f}" if d.league_mean_rank is not None else "n/a"
+        league_new = f"{d.league_share_new:.0%}" if d.league_share_new is not None else "n/a"
         typer.echo(
-            f"  game {d.game_number}: mean rank {d.mean_rank:.1f} (league {lg.mean_rank:.1f}), "
-            f"new champions {d.share_new:.0%} (league {lg.share_new:.0%}), n={d.picks} picks"  # type: ignore[union-attr]
+            f"  game {d.game_number}: mean rank {d.mean_rank:.1f} (league {league_rank}), "
+            f"new champions {d.share_new:.0%} (league {league_new}), n={d.picks} picks"
         )
+
+
+@app.command()
+def serve(
+    host: str = typer.Option("127.0.0.1", help="Interface to listen on."),
+    port: int = typer.Option(8000, help="Port to listen on."),
+) -> None:
+    """Serve the read-only HTTP API over the local cache (docs at /docs)."""
+    import uvicorn
+
+    from macrodna.api.app import create_app
+    from macrodna.api.queries import CacheNotReadyError
+
+    try:
+        api = create_app(load_settings())
+    except CacheNotReadyError as exc:
+        typer.secho(f"FAIL: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(1) from exc
+    uvicorn.run(api, host=host, port=port)
 
 
 if __name__ == "__main__":

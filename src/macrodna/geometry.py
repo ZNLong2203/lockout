@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import numpy as np
 
+#: min_x, min_y, max_x, max_y of the square the replay and the web map are drawn in
+MAP_BOUNDS = (0.0, 0.0, 15000.0, 15000.0)
+
 BLUE_NEXUS = (1774.0, 1598.0)
 RED_NEXUS = (13074.0, 13090.0)
 

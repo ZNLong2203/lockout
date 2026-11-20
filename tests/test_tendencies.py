@@ -8,12 +8,14 @@ import pytest
 
 from macrodna.draft.pools import MIN_HISTORY, PickRec
 from macrodna.draft.tendencies import (
+    MIN_TEAM_GAMES,
     DraftRow,
     ban_role_targeting,
     champion_roles,
     in_scope,
     pick_depth_by_game,
     team_tendencies,
+    tendency_report,
 )
 
 T0 = datetime(2026, 1, 1, tzinfo=UTC)
@@ -95,3 +97,44 @@ def test_pick_depth_rises_when_a_player_is_pushed_off_his_main() -> None:
     assert depth[1].mean_rank < depth[2].mean_rank
     assert depth[3].share_new == 1.0, "a champion never played before counts as new"
     assert pick_depth_by_game(picks, "someone else") == []
+
+
+def _report_picks() -> list[PickRec]:
+    """Team A's player drifts off his main in game 2; team B's player never does (the league baseline)."""
+    picks: list[PickRec] = []
+    for team, player, game2 in (("A", "pA", "Third"), ("B", "pB", "Main")):
+        for i in range(MIN_HISTORY + 12):
+            champ = "Main" if i < 10 else "Second" if i < 16 else "Third"
+            picks.append(
+                PickRec(f"{player}h{i}", f"{player}hs{i}", 1, T0 + timedelta(days=i), team, player, "mid", champ, True)
+            )  # fmt: skip
+        start = T0 + timedelta(days=100)
+        picks.append(
+            PickRec(f"{player}s1", f"{player}s", 1, start, team, player, "mid", "Main", True)
+        )
+        picks.append(
+            PickRec(f"{player}s2", f"{player}s", 2, start + timedelta(days=1), team, player, "mid", game2, False)
+        )  # fmt: skip
+    return picks
+
+
+def test_report_bundles_rates_and_the_fearless_shift_with_league_baselines() -> None:
+    report = tendency_report(_rows(), _report_picks(), "A", "all", top=3)
+    assert report is not None and report.team_games == 20
+    assert report.bans[0].champion == "Poppy" and report.bans[0].strength == "strong"
+    assert report.bans[0].team_games == 20 and report.bans[0].evidence_game_ids
+    assert len(report.picks) <= 3 and len(report.bans) <= 3
+    shift = {d.game_number: d for d in report.fearless_shift}
+    assert set(shift) == {1, 2}
+    assert shift[2].mean_rank > shift[1].mean_rank, "team A reaches deeper in game 2"
+    assert shift[2].league_mean_rank is not None
+    assert shift[2].league_mean_rank < shift[2].mean_rank, "...more than the league does"
+    assert report.notes
+
+
+def test_report_refuses_a_team_with_too_few_games_and_an_unknown_scope() -> None:
+    few = [r for r in _rows() if int(r.game_id[1:]) < MIN_TEAM_GAMES - 1]
+    assert tendency_report(few, _report_picks(), "A") is None
+    assert tendency_report(_rows(), _report_picks(), "ghost") is None
+    with pytest.raises(ValueError, match="scope"):
+        tendency_report(_rows(), _report_picks(), "A", "everything")

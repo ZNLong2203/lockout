@@ -1,167 +1,78 @@
-import { useEffect, useMemo, useState } from "react";
-import { fetchBacktest, fetchContext, isLive } from "./api/client";
-import type { DraftBacktest } from "./api/types";
-import { DraftBoard } from "./components/DraftBoard";
-import { Insights } from "./components/Insights";
-import { TrustPanel } from "./components/Panels";
-import { PlayerPools } from "./components/PlayerPools";
-import { RecentForm } from "./components/RecentForm";
-import { RiftMap } from "./components/RiftMap";
-import { SeriesStrip } from "./components/SeriesStrip";
+import { useEffect, useState } from "react";
+import { fetchTeams, isLive } from "./api/client";
+import type { TeamSummary } from "./api/types";
+import { DraftRoom } from "./components/DraftRoom";
+import type { Matchup } from "./components/MatchupPicker";
+import { ReplayPage } from "./components/ReplayPage";
+import { Scouting } from "./components/Scouting";
 import { CatalogContext, useLoadedCatalog } from "./lib/ddragon";
-import {
-  ORDER,
-  analyseTeam,
-  emptyDraft,
-  lockedBefore,
-  nextStep,
-  sideOf,
-  usedIn,
-  type GameDraft,
-  type SeriesContext,
-} from "./lib/draft";
+import { scoutingLink, useRoute } from "./lib/route";
 
-const STEPS = [
-  ["Series so far", "Champions picked in earlier games are locked for both teams."],
-  ["Draft this game", "Click champions in order. Every ban and pick updates the analysis."],
-  ["Read what it means", "Bans that bite, picks to protect, and their jungler on the map."],
-];
+const PAGES = [
+  { page: "draft", label: "Draft room", href: "#/draft" },
+  { page: "scouting", label: "Scouting", href: scoutingLink() },
+  { page: "replay", label: "Replay", href: "#/replay" },
+] as const;
+
+// Teams with a full history first: the default matchup is "Cloud9 against whoever has played the most".
+function defaultMatchup(teams: TeamSummary[]): Matchup | null {
+  const byGames = [...teams].sort((a, b) => b.games - a.games);
+  const ours = byGames.find((t) => /cloud9/i.test(t.name)) ?? byGames[0];
+  const opponent = byGames.find((t) => t.team_id !== ours?.team_id);
+  return ours && opponent ? { ours: ours.team_id, opponent: opponent.team_id } : null;
+}
 
 export default function App() {
   const catalog = useLoadedCatalog();
-  const [ctx, setCtx] = useState<SeriesContext | null>(null);
-  const [games, setGames] = useState<GameDraft[]>([]);
-  const [index, setIndex] = useState(0);
-  const [jungler, setJungler] = useState<string | null>(null);
-  const [backtest, setBacktest] = useState<DraftBacktest | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const route = useRoute();
+  const [teams, setTeams] = useState<TeamSummary[]>([]);
+  const [matchup, setMatchup] = useState<Matchup>({ ours: "", opponent: "" });
+  const [scoutTeam, setScoutTeam] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchContext()
-      .then((c) => {
-        setCtx(c);
-        const g = c.games.length ? c.games : [emptyDraft(1, "blue")];
-        setGames(g);
-        setIndex(g.length - 1);
+    fetchTeams()
+      .then((all) => {
+        setTeams(all);
+        const m = defaultMatchup(all);
+        if (m && isLive) setMatchup(m);
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : "Could not load the series"));
-    fetchBacktest().then(setBacktest).catch(() => setBacktest(null));
+      .catch(() => setTeams([]));
   }, []);
 
-  const game = games[index];
-  const view = useMemo(() => {
-    if (!ctx || !game) return null;
-    const locked = lockedBefore(games, index);
-    const used = usedIn(game);
-    const bannedNow = new Set(ORDER.map((o, i) => (o.action === "ban" ? game.steps[i] : null)).filter(Boolean) as string[]);
-    const unavailable = new Set([...locked, ...used]);
-    const them = analyseTeam(ctx.opponent, unavailable);
-    const us = analyseTeam(ctx.ours, unavailable);
-    const jg = them.find((s) => s.player.role === "jungle");
-    const jungleOptions = (jg?.available ?? []).slice(0, 5).map((e) => e.champion).filter((c) => ctx.jungle_bridges[c]);
-    return { locked, used, bannedNow, them, us, jungleOptions };
-  }, [ctx, games, index, game]);
+  // `#/scouting/<team>` wins; otherwise keep the last team looked at, or the opponent of the current matchup.
+  const team = route.page === "scouting" && route.team ? route.team : (scoutTeam ?? (isLive ? matchup.opponent || null : "bravo"));
+  useEffect(() => {
+    if (route.page === "scouting" && route.team) setScoutTeam(route.team);
+  }, [route]);
 
-  if (error) return <main className="app"><p className="err" role="alert">{error}</p></main>;
-  if (!ctx || !game || !view) return <main className="app"><p className="muted">Loading series…</p></main>;
-
-  const update = (g: GameDraft) => setGames(games.map((x, i) => (i === index ? g : x)));
-  const onPick = (c: string) => {
-    const s = nextStep(game);
-    if (s < 0) return;
-    const steps = [...game.steps];
-    steps[s] = c;
-    update({ ...game, steps });
-  };
-  const onUndo = () => {
-    const filled = game.steps.map((s, i) => (s ? i : -1)).filter((i) => i >= 0);
-    const last = filled[filled.length - 1];
-    if (last === undefined) return;
-    const steps = [...game.steps];
-    steps[last] = null;
-    update({ ...game, steps });
-  };
-  const onFinish = (winner: "us" | "them") => {
-    const done = { ...game, winner };
-    const next = emptyDraft(game.number + 1, game.ourSide === "blue" ? "red" : "blue");
-    setGames([...games.map((x, i) => (i === index ? done : x)), next]);
-    setIndex(games.length);
-  };
-  const activeJungler = jungler && view.jungleOptions.includes(jungler) ? jungler : (view.jungleOptions[0] ?? null);
-  const usWins = games.filter((g) => g.winner === "us").length;
-  const themWins = games.filter((g) => g.winner === "them").length;
-
+  const ready = !isLive || (matchup.ours !== "" && matchup.opponent !== "");
   return (
     <CatalogContext.Provider value={catalog}>
-      <header className="hero">
-        <div className="app hero-inner">
-          <div>
-            <div className="brand">MacroDNA</div>
-            <h1>Fearless draft room</h1>
-            <p className="hero-sub">Plan a whole series: who runs out of champions first, what to ban, what to save.</p>
-          </div>
-          <div className="matchup" aria-label="Matchup">
-            <div className="matchup-team">
-              <span className={`side-dot ${sideOf(game, "us")}`} aria-hidden />
-              <b>{ctx.ours.name}</b>
-            </div>
-            <div className="matchup-score">
-              {usWins} – {themWins}
-              <span>Game {game.number} · Bo{ctx.format}</span>
-            </div>
-            <div className="matchup-team">
-              <b>{ctx.opponent.name}</b>
-              <span className={`side-dot ${sideOf(game, "them")}`} aria-hidden />
-            </div>
-          </div>
+      <nav className="topnav" aria-label="Pages">
+        <div className="app topnav-inner">
+          <span className="brand">MacroDNA</span>
+          <ul>
+            {PAGES.map((p) => (
+              <li key={p.page}>
+                <a href={p.href} aria-current={route.page === p.page ? "page" : undefined}>
+                  {p.label}
+                </a>
+              </li>
+            ))}
+          </ul>
           <span className={`badge ${isLive ? "" : "demo"}`}>{isLive ? "Live data" : "Demo: synthetic teams and numbers"}</span>
         </div>
-      </header>
+      </nav>
 
-      <main className="app">
-        <ol className="how" aria-label="How to use">
-          {STEPS.map(([t, d], i) => (
-            <li key={t}>
-              <span className="how-n">{i + 1}</span>
-              <div>
-                <b>{t}</b>
-                <div className="muted">{d}</div>
-              </div>
-            </li>
-          ))}
-        </ol>
+      <div hidden={route.page !== "draft"}>{ready ? <DraftRoom teams={teams} matchup={matchup} onMatchup={setMatchup} /> : <main className="app"><p className="muted">Loading teams…</p></main>}</div>
+      {route.page === "scouting" && <Scouting teamId={team} onTeam={(id) => (window.location.hash = scoutingLink(id))} />}
+      {route.page === "replay" && <ReplayPage gameId={route.game} startAt={route.t} />}
 
-        <SeriesStrip
-          ctx={ctx}
-          games={games}
-          index={index}
-          onSelect={setIndex}
-          onFinish={onFinish}
-          onSwapSide={() => update({ ...game, ourSide: game.ourSide === "blue" ? "red" : "blue" })}
-        />
-
-        <DraftBoard ctx={ctx} games={games} index={index} onPick={onPick} onUndo={onUndo} onClear={() => update(emptyDraft(game.number, game.ourSide))} />
-
-        <div className="grid2">
-          <Insights ctx={ctx} them={view.them} us={view.us} gameNumber={game.number} jungler={activeJungler} />
-          <RiftMap bridge={activeJungler ? ctx.jungle_bridges[activeJungler] : undefined} side={sideOf(game, "them")} jungleOptions={view.jungleOptions} onChoose={setJungler} />
-        </div>
-
-        <div className="grid2">
-          <PlayerPools title={`${ctx.opponent.name}: comfort picks left`} accent="var(--side-them)" states={view.them} locked={view.locked} bannedNow={view.bannedNow} usedNow={view.used} />
-          <PlayerPools title={`${ctx.ours.name}: comfort picks left`} accent="var(--side-us)" states={view.us} locked={view.locked} bannedNow={view.bannedNow} usedNow={view.used} />
-        </div>
-
-        <RecentForm team={ctx.opponent.name} games={ctx.opponent_recent} />
-
-        {backtest && <TrustPanel data={backtest} />}
-
-        <footer className="legal">
-          MacroDNA isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing
-          or managing Riot Games properties. Riot Games, and all associated properties are trademarks or registered trademarks of Riot Games, Inc.
-          Champion portraits are loaded from Riot's Data Dragon. Match data provided by GRID; not endorsed by Cloud9.
-        </footer>
-      </main>
+      <footer className="app legal">
+        MacroDNA isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing
+        or managing Riot Games properties. Riot Games, and all associated properties are trademarks or registered trademarks of Riot Games, Inc.
+        Champion portraits are loaded from Riot's Data Dragon. Match data provided by GRID; not endorsed by Cloud9.
+      </footer>
     </CatalogContext.Provider>
   );
 }

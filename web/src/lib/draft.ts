@@ -1,8 +1,17 @@
 // Fearless draft model used by the board. The maths mirrors src/macrodna/draft/pools.py so the board can react
 // instantly to every click; the API supplies the pools and the forecast.
-import type { JungleBridge, PoolStatus, Role } from "../api/types";
+import type {
+  ContextPlayer,
+  ContextPoolEntry,
+  ContextTeam,
+  PoolStatus,
+  RecentGame,
+  Role,
+  SeriesContext as ApiSeriesContext,
+  Side as ApiSide,
+} from "../api/types";
 
-export type Side = "blue" | "red";
+export type Side = ApiSide;
 export type Action = "ban" | "pick";
 
 // Tournament draft order: 6 bans, 6 picks, 4 bans, 4 picks.
@@ -13,26 +22,9 @@ export const ORDER: { side: Side; action: Action }[] = [
   ...(["red", "blue", "blue", "red"] as Side[]).map((side) => ({ side, action: "pick" as Action })),
 ];
 
-export interface PoolEntry {
-  champion: string;
-  share: number; // share of the player's recency-weighted pool
-  games: number;
-}
-
-export interface PlayerPool {
-  player_id: string;
-  name: string;
-  role: Role;
-  history: number;
-  pool: PoolEntry[];
-}
-
-export interface TeamCtx {
-  team_id: string;
-  name: string;
-  short: string;
-  players: PlayerPool[];
-}
+export type PoolEntry = ContextPoolEntry;
+export type PlayerPool = ContextPlayer;
+export type TeamCtx = ContextTeam;
 
 export interface GameDraft {
   number: number;
@@ -41,25 +33,11 @@ export interface GameDraft {
   winner: "us" | "them" | null;
 }
 
-export interface PastGame {
-  game_id: string;
-  date: string;
-  opponent: string;
-  side: Side;
-  won: boolean;
-  duration_s: number;
-  picks: { champion: string; role: Role }[];
-  bans: string[];
-}
+export type PastGame = RecentGame;
 
-export interface SeriesContext {
-  ours: TeamCtx;
-  opponent: TeamCtx;
-  format: number; // best of N
-  games: GameDraft[]; // games entered so far, the last one is being drafted
-  opponent_recent: PastGame[];
-  jungle_bridges: Record<string, JungleBridge>;
-  league_top3_share_by_game: number[]; // index 0 = game 1
+/** The API context plus the games the coach has entered so far (the last one is being drafted). */
+export interface SeriesContext extends ApiSeriesContext {
+  games: GameDraft[];
 }
 
 export const emptyDraft = (number: number, ourSide: Side): GameDraft => ({

@@ -1,4 +1,10 @@
-# MacroDNA web app: the Fearless draft room
+# MacroDNA web app
+
+Three pages: the **Fearless draft room**, a **scouting** profile (jungle openings, objective set-up, tells with the
+games behind each one) and a **2D replay**. Pages are hash routes (`#/draft`, `#/scouting/<team>`,
+`#/replay/<game>?t=<seconds>`), so every view is linkable and the app stays a static bundle.
+
+## The draft room
 
 A series view (earlier games lock their champions), an interactive draft board, plain-language insights with a ban
 shortlist, the opponent jungler on a stylised map drawn from our own geometry, comfort pools per player, and what
@@ -12,8 +18,12 @@ cd web
 npm install
 npm run dev                      # synthetic demo data, http://localhost:5173
 VITE_API=live npm run dev        # talks to the API (`uv run macrodna serve`, proxied from /api)
+npm test                         # Vitest: draft rules, replay maths, routes, map geometry
 npm run build                    # typecheck + production build
 ```
+
+Dev-tooling note: `npm audit` reports advisories in the Vitest/Vite dev tooling chain; the production bundle has none
+(`npm audit --omit=dev`). Fixing the Vitest ones means a major upgrade (Vitest 5 needs Vite 6.4+).
 
 Types in `src/api/types.ts` mirror `src/macrodna/api/schemas.py`; the contract is `docs/api-contract.md`.
 Charts are hand-written SVG following the data-viz specs (2 px lines, 8 px markers with a surface ring, a legend

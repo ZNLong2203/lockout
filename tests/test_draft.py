@@ -184,3 +184,19 @@ def test_simulation_is_reproducible_and_pools_only_shrink() -> None:
     assert f1.mean_stress == f2.mean_stress
     curve = f1.mean_stress["a"]
     assert curve[0] == 1.0 and all(x >= y for x, y in zip(curve, curve[1:], strict=False))
+
+
+def test_pairwise_result_compares_the_two_teams_of_a_game() -> None:
+    from macrodna.draft.analysis import StressRow, pairwise_result
+
+    rows = []
+    for i in range(10):  # in 8 of 10 games the team with the more comfortable pool wins
+        comfy_wins = i < 8
+        rows.append(StressRow(f"g{i}", "a", 2, 0.8, "mid", comfy_wins))
+        rows.append(StressRow(f"g{i}", "b", 2, 0.4, "top", not comfy_wins))
+    result = pairwise_result(rows)
+    assert result["n"] == 10 and result["wins"] == 8 and result["rate"] == pytest.approx(0.8)
+    assert result["ci_lo"] < 0.8 < result["ci_hi"]
+    assert pairwise_result([])["n"] == 0
+    tie = [StressRow("g", "a", 2, 0.5, "mid", True), StressRow("g", "b", 2, 0.5, "top", False)]
+    assert pairwise_result(tie)["n"] == 0, "equal stress carries no information"

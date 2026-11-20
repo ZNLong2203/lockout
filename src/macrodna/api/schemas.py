@@ -136,3 +136,118 @@ class Replay(BaseModel):
     blue_team: str
     red_team: str
     winner_side: Side | None
+
+
+# --- Draft: Fearless pool planner and its backtest -------------------------------------------------
+
+
+class PoolEntry(BaseModel):
+    champion: str
+    share: float = Field(
+        description="Share of the player's full comfortable pool this champion represents"
+    )
+
+
+class RolePool(BaseModel):
+    role: Role
+    player_id: str
+    player_name: str | None = None
+    history: int = Field(description="Picks the pool is based on; always show next to the numbers")
+    mass: float = Field(
+        description="Share of the pool still available after locked champions and bans"
+    )
+    depth: int = Field(description="Available champions the player has played at least twice")
+    status: Literal["ok", "thin", "critical"]
+    remaining: list[PoolEntry]
+
+
+class BanSuggestion(BaseModel):
+    role: Role
+    champion: str
+    share_of_remaining: float = Field(
+        description="Fraction of what the player has left that this ban removes"
+    )
+
+
+class TeamPoolState(BaseModel):
+    team_id: str
+    name: str
+    roles: list[RolePool] = Field(description="Weakest role first")
+    untrusted_roles: list[str] = Field(description="Roles left out for lack of history")
+    ban_suggestions: list[BanSuggestion]
+
+
+class TeamForecast(BaseModel):
+    team_id: str
+    mean_stress: list[float] = Field(
+        description="Mean lowest-role pool left at the start of game 1..N"
+    )
+    p_critical: dict[str, list[float]] = Field(
+        description="role -> P(critical) at the start of game 1..N"
+    )
+    weakest_at_end: dict[str, float] = Field(
+        description="role -> P(it is the weakest role at game N)"
+    )
+
+
+class JungleBridge(BaseModel):
+    champion: str
+    n: int
+    scope: Literal["team", "league"]
+    start_top: float
+    start_bot: float
+    first_lane: dict[str, float]
+    no_early_lane: float
+    median_first_lane_t: int | None
+
+
+class SeriesPlanResponse(BaseModel):
+    ours: TeamPoolState
+    opponent: TeamPoolState
+    forecast: list[TeamForecast] | None
+    n_sims: int
+    jungle_bridges: list[JungleBridge]
+    notes: list[str]
+
+
+class DepletionPoint(BaseModel):
+    game_number: int
+    team_games: int
+    mean_stress: float
+
+
+class StressBucket(BaseModel):
+    label: str
+    n: int
+    wins: int
+    win_rate: float
+    ci_lo: float
+    ci_hi: float
+
+
+class PairwiseResult(BaseModel):
+    n: int
+    wins: int
+    rate: float
+    ci_lo: float
+    ci_hi: float
+    p_value: float
+
+
+class CalibrationPoint(BaseModel):
+    game_number: int
+    series: int
+    simulated: float
+    actual: float | None
+    actual_n: int
+
+
+class DraftBacktest(BaseModel):
+    """Served as-is from ``draft_backtest.json``. Always show ``caveats`` next to the numbers."""
+
+    depletion: list[DepletionPoint]
+    buckets: list[StressBucket]
+    pairwise: PairwiseResult
+    calibration: list[CalibrationPoint]
+    weakest_role_share: dict[str, float]
+    caveats: list[str]

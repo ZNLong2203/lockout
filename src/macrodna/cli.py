@@ -72,5 +72,53 @@ def detect() -> None:
     typer.echo(f"tells: {n_tells} scored (team x template), {n_evidence} evidence rows")
 
 
+@app.command()
+def draft_build() -> None:
+    """Build the enriched draft table used by the draft features."""
+    from macrodna.draft.enrich import build_draft_table
+
+    settings = load_settings()
+    out = settings.cache_dir / "lol"
+    if not (out / "roles.parquet").exists():
+        typer.secho("No cache found: run `macrodna etl` first.", fg=typer.colors.RED, err=True)
+        raise typer.Exit(1)
+    from macrodna.draft.analysis import write_backtest
+
+    n = build_draft_table(out, settings.meta_dir, settings.lol_dir)
+    typer.echo(f"draft table: {n} actions")
+    summary = write_backtest(out)
+    pair = summary["pairwise"]
+    typer.echo(
+        f"backtest: more comfortable pool wins {pair['rate']:.1%} (n={pair['n']}, p={pair['p_value']:.3f})"  # type: ignore[index]
+    )
+
+
+@app.command()
+def plan(
+    team: str = typer.Argument(..., help="Our team, part of the name (e.g. 'Cloud9')."),
+    opponent: str = typer.Argument(..., help="Opponent, part of the name."),
+    locked: str = typer.Option(
+        "", help="Champions already picked in earlier games, comma separated."
+    ),
+    banned: str = typer.Option("", help="Champions banned in the current draft, comma separated."),
+) -> None:
+    """Fearless series planner: pool state, ban targets and a forecast for both teams."""
+    from macrodna.draft.planner import PickIndex, plan_series
+    from macrodna.report import format_plan, resolve_team
+
+    settings = load_settings()
+    cache = settings.cache_dir / "lol"
+    index = PickIndex.load(cache)
+    ours, theirs = resolve_team(settings, index, team), resolve_team(settings, index, opponent)
+    result = plan_series(
+        index,
+        ours[0],
+        theirs[0],
+        {c.strip() for c in locked.split(",") if c.strip()},
+        {c.strip() for c in banned.split(",") if c.strip()},
+    )
+    typer.echo(format_plan(result, ours[1], theirs[1], cache))
+
+
 if __name__ == "__main__":
     app()

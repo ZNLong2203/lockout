@@ -208,7 +208,9 @@ def calibrate_simulator(
     ]
 
 
-def write_backtest(cache_lol_dir: Path) -> dict[str, object]:
+def write_backtest(
+    cache_lol_dir: Path, extra: dict[str, object] | None = None
+) -> dict[str, object]:
     import json
 
     picks = load_picks(cache_lol_dir)
@@ -228,6 +230,7 @@ def write_backtest(cache_lol_dir: Path) -> dict[str, object]:
             "Bans are not modelled in the simulator, which makes it slightly optimistic.",
             "Games 4 and 5 are rare in the corpus (about 150 and 60 team-games).",
         ],
+        **(extra or {}),
     }
     (cache_lol_dir / "draft_backtest.json").write_text(
         json.dumps(summary, indent=2), encoding="utf-8"

@@ -80,6 +80,16 @@ What the backtest says (no look-ahead; reproduce with `macrodna draft-build`):
 | Depletion predicts winning across games | critical pools win 47 % (n = 268, CI 41-53 %) vs about 51 % | **not demonstrated** |
 | Within the same game, the more comfortable lineup wins | 54.2 % (n = 863, CI 51-58 %, p = 0.014) | modest effect; one of several comparisons looked at, so suggestive only |
 
+### Fearless shift and pick/ban tendencies
+
+- **Pick depth by game** (league-wide, trusted pools only): the rank of each pick in the player's full pool
+  (1 = most played) rises from 4.8 in game 1 to 5.6, 6.6, 7.7 and 9.1 in game 5; picks from a player's top 3 fall from
+  40 % to 11 %; picks of a champion the player had never played rise from 14 % to 32 %. (Rank is taken in the *full*
+  pool: ranking only what is still available would shrink the list and hide the effect.)
+- **Team tendencies**: each champion's ban/pick rate for a team is tested against the league rate in the same
+  scope (all games, first games, later games) with an exact binomial test and Benjamini-Hochberg correction, and
+  every occurrence is kept as evidence. Ban *targets* are read through the role a champion is usually picked in.
+
 We present pool stress as a planning aid for choosing what to ban and what to save, not as a win-rate predictor.
 
 ## Limitations

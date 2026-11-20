@@ -242,6 +242,16 @@ class CalibrationPoint(BaseModel):
     actual_n: int
 
 
+class PickDepthPoint(BaseModel):
+    game_number: int
+    picks: int
+    mean_rank: float = Field(
+        description="Rank of the pick in the player's full pool (1 = most played)"
+    )
+    share_top3: float
+    share_new: float = Field(description="Share of picks the player had never played before")
+
+
 class DraftBacktest(BaseModel):
     """Served as-is from ``draft_backtest.json``. Always show ``caveats`` next to the numbers."""
 
@@ -250,4 +260,7 @@ class DraftBacktest(BaseModel):
     pairwise: PairwiseResult
     calibration: list[CalibrationPoint]
     weakest_role_share: dict[str, float]
+    pick_depth: list[PickDepthPoint] = Field(
+        description="League-wide Fearless shift by game number"
+    )
     caveats: list[str]

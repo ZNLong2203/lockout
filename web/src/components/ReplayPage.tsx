@@ -4,7 +4,7 @@ import type { Replay } from "../api/types";
 import { replayLink } from "../lib/route";
 import { ReplayPlayer } from "./ReplayPlayer";
 
-/** The 2D replay of one game, opened from the evidence behind a tell or by game id. */
+/** The replay (3D or 2D) of one game, opened from the evidence behind a tell or by game id. */
 export function ReplayPage({ gameId, startAt }: { gameId: string | null; startAt: number }) {
   const [replay, setReplay] = useState<Replay | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +31,7 @@ export function ReplayPage({ gameId, startAt }: { gameId: string | null; startAt
   return (
     <main className="app">
       <section className="card" aria-label="Replay">
-        <h2>2D replay</h2>
+        <h2>Replay</h2>
         <p className="sub">
           Every player once per second, drawn on our own map. Open it from the games behind a tell on the Scouting page, or enter a game id.
           {!isLive && " In demo mode every game opens the same synthetic replay."}

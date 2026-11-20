@@ -70,7 +70,7 @@ export default function App() {
       <footer className="app legal">
         Lockout isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing
         or managing Riot Games properties. Riot Games, and all associated properties are trademarks or registered trademarks of Riot Games, Inc.
-        Champion portraits are loaded from Riot's Data Dragon. Match data provided by GRID; not endorsed by Cloud9.
+        Champion portraits, splash art and the minimap behind the 3D terrain are loaded at runtime from Riot's Data Dragon. Match data provided by GRID; not endorsed by Cloud9.
       </footer>
     </CatalogContext.Provider>
   );

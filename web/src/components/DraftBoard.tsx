@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useCatalog } from "../lib/ddragon";
+import { splashUrl, useCatalog } from "../lib/ddragon";
 import { ORDER, draftList, lockedBefore, nextStep, sideOf, usedIn, type GameDraft, type SeriesContext, type Side } from "../lib/draft";
 import { ChampIcon, ROLE_SHORT, type ChampState } from "./ChampIcon";
 
@@ -13,6 +13,7 @@ interface Props {
 }
 
 function TeamColumn({ ctx, game, side }: { ctx: SeriesContext; game: GameDraft; side: Side }) {
+  const catalog = useCatalog();
   const who = sideOf(game, "us") === side ? "us" : "them";
   const team = who === "us" ? ctx.ours : ctx.opponent;
   const roleOf = (c: string) => team.players.find((p) => p.pool.some((e) => e.champion === c))?.role;
@@ -34,8 +35,8 @@ function TeamColumn({ ctx, game, side }: { ctx: SeriesContext; game: GameDraft; 
       </div>
       <ol className="pick-list" aria-label={`${team.name} picks`}>
         {picks.map((p, i) => (
-          <li key={i} className={p ? "filled" : ""}>
-            <ChampIcon name={p} size={44} />
+          <li key={i} className={`pick-banner ${p ? "filled" : ""}`} style={p && splashUrl(catalog, p) ? { backgroundImage: `url(${splashUrl(catalog, p)})` } : undefined}>
+            <span className="pick-shade" aria-hidden />
             <span className="pick-name">{p ?? `Pick ${i + 1}`}</span>
             {p && roleOf(p) && <span className="role-tag">{ROLE_SHORT[roleOf(p) as string]}</span>}
           </li>

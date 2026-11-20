@@ -49,3 +49,14 @@ export function iconUrl(catalog: Catalog, name: string): string | null {
   const id = catalog.idByName.get(name.toLowerCase());
   return id && catalog.version ? `${BASE}/cdn/${catalog.version}/img/champion/${id}.png` : null;
 }
+
+/** Wide splash art (default skin), for pick banners. Unversioned path on Data Dragon. */
+export function splashUrl(catalog: Catalog, name: string): string | null {
+  const id = catalog.idByName.get(name.toLowerCase());
+  return id ? `${BASE}/cdn/img/champion/splash/${id}_0.jpg` : null;
+}
+
+/** Riot's official Summoner's Rift minimap (schematic), used to build the 3D terrain at runtime. */
+export function mapUrl(catalog: Catalog): string | null {
+  return catalog.version ? `${BASE}/cdn/${catalog.version}/img/map/map11.png` : null;
+}

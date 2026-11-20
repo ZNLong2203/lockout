@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { Replay } from "../api/types";
 import { clock } from "../lib/draft";
 import { P, S } from "../lib/map";
@@ -6,6 +6,8 @@ import { EVENT_KIND_LABEL, KEY_EVENTS, describeEvent, frameAt, trailOf } from ".
 import { iconUrl, useCatalog } from "../lib/ddragon";
 import { ChampIcon, ROLE_SHORT } from "./ChampIcon";
 import { MapBase } from "./MapBase";
+
+const Rift3D = lazy(() => import("./Rift3D"));
 
 const ROLE_ORDER = ["top", "jungle", "mid", "adc", "support", "unknown"];
 
@@ -31,6 +33,7 @@ export function ReplayPlayer({ replay, startAt = 0 }: Props) {
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(4);
   const [trails, setTrails] = useState(true);
+  const [view, setView] = useState<"3d" | "2d">("3d");
   const raf = useRef(0);
   const prev = useRef(0);
   const toXY = useMemo(() => toMap(replay), [replay]);
@@ -87,53 +90,66 @@ export function ReplayPlayer({ replay, startAt = 0 }: Props) {
   return (
     <div className="replay">
       <div className="replay-stage" tabIndex={0} onKeyDown={onKey} aria-label={`${summary}. Space plays or pauses, arrow keys move 5 seconds, shift 30 seconds.`}>
+        {view === "3d" ? (
+          <Suspense fallback={<div className="rift3d rift3d-loading">Loading the 3D Rift…</div>}>
+            <Rift3D catalog={catalog} replay={replay} t={t} trails={trails} className="replay-3d" />
+          </Suspense>
+        ) : (
         <MapBase label={summary} className="rift replay-map">
-          {trails &&
-            replay.players.map((p) => {
-              const pts = trailOf(replay, p.slot, t, TRAIL_S);
-              if (pts.length < 2) return null;
+            {trails &&
+              replay.players.map((p) => {
+                const pts = trailOf(replay, p.slot, t, TRAIL_S);
+                if (pts.length < 2) return null;
+                return (
+                  <polyline
+                    key={`tr-${p.slot}`}
+                    points={pts.map((q) => P(toXY(q.x, q.y))).join(" ")}
+                    fill="none"
+                    stroke={colour(p.side)}
+                    strokeOpacity={0.35}
+                    strokeWidth={90}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                );
+              })}
+            {recentKills.map((e) => {
+              const [x, y] = toXY(e.x as number, e.y as number);
+              return <circle key={`k-${e.t}`} cx={x} cy={S - y} r={520 + (t - e.t) * 70} fill="none" stroke="var(--critical)" strokeWidth={90} opacity={1 - (t - e.t) / RECENT_S} />;
+            })}
+            {replay.players.map((p) => {
+              const at = frame[p.slot];
+              if (!at) return null;
+              const [x, y] = toXY(at.x, at.y);
+              const src = p.champion ? iconUrl(catalog, p.champion) : null;
               return (
-                <polyline
-                  key={`tr-${p.slot}`}
-                  points={pts.map((q) => P(toXY(q.x, q.y))).join(" ")}
-                  fill="none"
-                  stroke={colour(p.side)}
-                  strokeOpacity={0.35}
-                  strokeWidth={90}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+                <g key={p.slot} transform={`translate(${x} ${S - y})`}>
+                  <circle r={400} fill={colour(p.side)} stroke="var(--surface)" strokeWidth={90} />
+                  {src ? (
+                    <>
+                      <clipPath id={`rp-clip-${p.slot}`} clipPathUnits="userSpaceOnUse">
+                        <circle r={320} />
+                      </clipPath>
+                      <image href={src} x={-320} y={-320} width={640} height={640} clipPath={`url(#rp-clip-${p.slot})`} preserveAspectRatio="xMidYMid slice" />
+                    </>
+                  ) : (
+                    <text className="replay-tag" textAnchor="middle" dy={150}>
+                      {ROLE_SHORT[p.role]?.[0] ?? "?"}
+                    </text>
+                  )}
+                  <title>{`${p.name}${p.champion ? ` (${p.champion})` : ""}`}</title>
+                </g>
               );
             })}
-          {recentKills.map((e) => {
-            const [x, y] = toXY(e.x as number, e.y as number);
-            return <circle key={`k-${e.t}`} cx={x} cy={S - y} r={520 + (t - e.t) * 70} fill="none" stroke="var(--critical)" strokeWidth={90} opacity={1 - (t - e.t) / RECENT_S} />;
-          })}
-          {replay.players.map((p) => {
-            const at = frame[p.slot];
-            if (!at) return null;
-            const [x, y] = toXY(at.x, at.y);
-            const src = p.champion ? iconUrl(catalog, p.champion) : null;
-            return (
-              <g key={p.slot} transform={`translate(${x} ${S - y})`}>
-                <circle r={400} fill={colour(p.side)} stroke="var(--surface)" strokeWidth={90} />
-                {src ? (
-                  <>
-                    <clipPath id={`rp-clip-${p.slot}`} clipPathUnits="userSpaceOnUse">
-                      <circle r={320} />
-                    </clipPath>
-                    <image href={src} x={-320} y={-320} width={640} height={640} clipPath={`url(#rp-clip-${p.slot})`} preserveAspectRatio="xMidYMid slice" />
-                  </>
-                ) : (
-                  <text className="replay-tag" textAnchor="middle" dy={150}>
-                    {ROLE_SHORT[p.role]?.[0] ?? "?"}
-                  </text>
-                )}
-                <title>{`${p.name}${p.champion ? ` (${p.champion})` : ""}`}</title>
-              </g>
-            );
-          })}
-        </MapBase>
+          </MapBase>
+        )}
+        <div className="view-toggle" role="radiogroup" aria-label="Map view">
+          {(["3d", "2d"] as const).map((v) => (
+            <button key={v} type="button" role="radio" aria-checked={view === v} className={`chip ${view === v ? "on" : ""}`} onClick={() => setView(v)}>
+              {v.toUpperCase()}
+            </button>
+          ))}
+        </div>
         <div className="replay-clock" aria-hidden>
           {clock(t)}
         </div>

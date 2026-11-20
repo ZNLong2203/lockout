@@ -22,7 +22,7 @@ web/ (React + TypeScript, Vite)    proxies /api; runs on synthetic demo data wit
 | Module | Role |
 |---|---|
 | `etl/` | Streams the compressed feeds into per-series position shards and the `games`, `players`, `events`, `draft` tables |
-| `roles.py`, `geometry.py` | Role inference from behaviour; lane paths, camps and pits measured from the data (no Riot map art) |
+| `roles.py`, `geometry.py` | Role inference from behaviour; lane paths, camps and pits measured from the data (the analysis uses no map art; the 3D terrain is built at runtime from Riot's Data Dragon minimap) |
 | `detectors/` | `jungle` (opening route, first lane), `objectives` (players in range before each objective), `tells` (12 fixed hypotheses, exact test, Benjamini-Hochberg) |
 | `draft/` | `pools` (Fearless pool maths), `simulate` (Monte Carlo series), `planner` (ban targets, forecast, macro bridge), `tendencies` (pick/ban habits and the Fearless shift) |
 | `api/` | `schemas.py` is the contract, `queries.py` reads the cache and maps it onto the schemas, `app.py` declares the routes |

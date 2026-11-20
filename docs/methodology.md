@@ -16,7 +16,7 @@ GRID feed (.zst)  ->  ETL  ->  tracks / events / draft   (local cache, never com
 
 Roles are inferred from behaviour (support item, distance from lanes, lane position), validated by
 independent checks (see the audit). Lane paths and objective pits are measured from where players stood when
-they destroyed structures and killed objectives, so no Riot map art is used.
+they destroyed structures and killed objectives, so the analysis needs no map art. The 3D view builds its terrain at runtime from Riot's official minimap (Data Dragon); nothing derived from it is stored.
 
 ## 2. Jungle opening fingerprint
 

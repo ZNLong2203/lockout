@@ -12,6 +12,7 @@ Base path `/api`. Errors use standard HTTP codes with a JSON `{"detail": "..."}`
 | `GET /api/teams/{team_id}/tells/{template_id}/evidence` | `EvidenceItem[]` | One item per occurrence, newest first |
 | `GET /api/games/{game_id}/replay` | `Replay` | One position per second per player |
 | `GET /api/draft/plan?team=&opponent=&locked=&banned=` | `SeriesPlanResponse` | `locked` and `banned` are comma-separated champion names; the logic is `macrodna.draft.planner.plan_series` |
+| `GET /api/series/context?team=&opponent=` | `SeriesContext` | Powers the draft room. Lineups from `PickIndex.current_lineup`, pools from `pool_weights` (top 8 champions per player), opponent's last 5 games from `draft_enriched`, `jungle_bridge` for each champion in the opponent jungler's pool, `league_top3_share_by_game` from `draft_backtest.json` |
 | `GET /api/draft/backtest` | `DraftBacktest` | Read `draft_backtest.json` from the cache; do not recompute |
 | `GET /api/draft/bridge?champion=&team=` | `JungleBridge` | `scope` is `team` when that team has the champion, else `league`; 404 if never played |
 

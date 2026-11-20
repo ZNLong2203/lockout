@@ -1,150 +1,167 @@
-import { useCallback, useEffect, useState } from "react";
-import { fetchBacktest, fetchPlan, isLive } from "./api/client";
-import type { DraftBacktest, PlanQuery, RolePool, SeriesPlanResponse } from "./api/types";
-import { LineChart } from "./components/LineChart";
-import { BanPlan, BridgeCard, TrustPanel } from "./components/Panels";
-import { PoolRunwayCard } from "./components/PoolRunwayCard";
+import { useEffect, useMemo, useState } from "react";
+import { fetchBacktest, fetchContext, isLive } from "./api/client";
+import type { DraftBacktest } from "./api/types";
+import { DraftBoard } from "./components/DraftBoard";
+import { Insights } from "./components/Insights";
+import { TrustPanel } from "./components/Panels";
+import { PlayerPools } from "./components/PlayerPools";
+import { RecentForm } from "./components/RecentForm";
+import { RiftMap } from "./components/RiftMap";
+import { SeriesStrip } from "./components/SeriesStrip";
+import { CatalogContext, useLoadedCatalog } from "./lib/ddragon";
+import {
+  ORDER,
+  analyseTeam,
+  emptyDraft,
+  lockedBefore,
+  nextStep,
+  sideOf,
+  usedIn,
+  type GameDraft,
+  type SeriesContext,
+} from "./lib/draft";
 
-const split = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
-const pct = (v: number) => `${Math.round(v * 100)}%`;
-
-function WeakestTile({ label, role, who }: { label: string; role: RolePool | undefined; who: string }) {
-  // With nothing locked every role has 100% left and "weakest" would be an arbitrary pick.
-  const untouched = role !== undefined && role.mass >= 0.999;
-  return (
-    <div className="card tile">
-      <div className="label">{label}</div>
-      <div className="value">{!role ? "–" : untouched ? "Nothing locked yet" : `${role.role} · ${pct(role.mass)}`}</div>
-      <div className="note">
-        {who}
-        {role && !untouched && ` · ${role.status}, based on ${role.history} picks`}
-        {untouched && " · add the champions picked in earlier games to see which role runs out first"}
-      </div>
-    </div>
-  );
-}
-
-const DEMO_LOCKED = "Kalista, Rumble, Azir, Wukong, Nautilus, Ashe";
+const STEPS = [
+  ["Series so far", "Champions picked in earlier games are locked for both teams."],
+  ["Draft this game", "Click champions in order. Every ban and pick updates the analysis."],
+  ["Read what it means", "Bans that bite, picks to protect, and their jungler on the map."],
+];
 
 export default function App() {
-  const [form, setForm] = useState({
-    team: isLive ? "" : "Demo Team A",
-    opponent: isLive ? "" : "Demo Team B",
-    locked: isLive ? "" : DEMO_LOCKED,
-    banned: "",
-  });
-  const [plan, setPlan] = useState<SeriesPlanResponse | null>(null);
+  const catalog = useLoadedCatalog();
+  const [ctx, setCtx] = useState<SeriesContext | null>(null);
+  const [games, setGames] = useState<GameDraft[]>([]);
+  const [index, setIndex] = useState(0);
+  const [jungler, setJungler] = useState<string | null>(null);
   const [backtest, setBacktest] = useState<DraftBacktest | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const run = useCallback(async (f: typeof form) => {
-    setBusy(true);
-    setError(null);
-    const q: PlanQuery = { team: f.team, opponent: f.opponent, locked: split(f.locked), banned: split(f.banned) };
-    try {
-      setPlan(await fetchPlan(q));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
-    } finally {
-      setBusy(false);
-    }
-  }, []);
 
   useEffect(() => {
-    void run(form);
+    fetchContext()
+      .then((c) => {
+        setCtx(c);
+        const g = c.games.length ? c.games : [emptyDraft(1, "blue")];
+        setGames(g);
+        setIndex(g.length - 1);
+      })
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : "Could not load the series"));
     fetchBacktest().then(setBacktest).catch(() => setBacktest(null));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [k]: e.target.value });
-  const forecast = plan?.forecast ?? null;
-  const games = forecast?.[0]?.mean_stress.length ?? 0;
+  const game = games[index];
+  const view = useMemo(() => {
+    if (!ctx || !game) return null;
+    const locked = lockedBefore(games, index);
+    const used = usedIn(game);
+    const bannedNow = new Set(ORDER.map((o, i) => (o.action === "ban" ? game.steps[i] : null)).filter(Boolean) as string[]);
+    const unavailable = new Set([...locked, ...used]);
+    const them = analyseTeam(ctx.opponent, unavailable);
+    const us = analyseTeam(ctx.ours, unavailable);
+    const jg = them.find((s) => s.player.role === "jungle");
+    const jungleOptions = (jg?.available ?? []).slice(0, 5).map((e) => e.champion).filter((c) => ctx.jungle_bridges[c]);
+    return { locked, used, bannedNow, them, us, jungleOptions };
+  }, [ctx, games, index, game]);
+
+  if (error) return <main className="app"><p className="err" role="alert">{error}</p></main>;
+  if (!ctx || !game || !view) return <main className="app"><p className="muted">Loading series…</p></main>;
+
+  const update = (g: GameDraft) => setGames(games.map((x, i) => (i === index ? g : x)));
+  const onPick = (c: string) => {
+    const s = nextStep(game);
+    if (s < 0) return;
+    const steps = [...game.steps];
+    steps[s] = c;
+    update({ ...game, steps });
+  };
+  const onUndo = () => {
+    const filled = game.steps.map((s, i) => (s ? i : -1)).filter((i) => i >= 0);
+    const last = filled[filled.length - 1];
+    if (last === undefined) return;
+    const steps = [...game.steps];
+    steps[last] = null;
+    update({ ...game, steps });
+  };
+  const onFinish = (winner: "us" | "them") => {
+    const done = { ...game, winner };
+    const next = emptyDraft(game.number + 1, game.ourSide === "blue" ? "red" : "blue");
+    setGames([...games.map((x, i) => (i === index ? done : x)), next]);
+    setIndex(games.length);
+  };
+  const activeJungler = jungler && view.jungleOptions.includes(jungler) ? jungler : (view.jungleOptions[0] ?? null);
+  const usWins = games.filter((g) => g.winner === "us").length;
+  const themWins = games.filter((g) => g.winner === "them").length;
 
   return (
-    <main className="app">
-      <div className="top">
-        <div>
-          <h1>Fearless series planner</h1>
-          <p className="sub">
-            Which role runs out of champions first, what a ban would take away, and what that pick means on the map.
-          </p>
+    <CatalogContext.Provider value={catalog}>
+      <header className="hero">
+        <div className="app hero-inner">
+          <div>
+            <div className="brand">MacroDNA</div>
+            <h1>Fearless draft room</h1>
+            <p className="hero-sub">Plan a whole series: who runs out of champions first, what to ban, what to save.</p>
+          </div>
+          <div className="matchup" aria-label="Matchup">
+            <div className="matchup-team">
+              <span className={`side-dot ${sideOf(game, "us")}`} aria-hidden />
+              <b>{ctx.ours.name}</b>
+            </div>
+            <div className="matchup-score">
+              {usWins} – {themWins}
+              <span>Game {game.number} · Bo{ctx.format}</span>
+            </div>
+            <div className="matchup-team">
+              <b>{ctx.opponent.name}</b>
+              <span className={`side-dot ${sideOf(game, "them")}`} aria-hidden />
+            </div>
+          </div>
+          <span className={`badge ${isLive ? "" : "demo"}`}>{isLive ? "Live data" : "Demo: synthetic teams and numbers"}</span>
         </div>
-        <span className={`badge ${isLive ? "" : "demo"}`}>{isLive ? "Live data" : "Synthetic demo data"}</span>
-      </div>
+      </header>
 
-      <form
-        className="card controls"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void run(form);
-        }}
-      >
-        <label>
-          Our team
-          <input value={form.team} onChange={set("team")} />
-        </label>
-        <label>
-          Opponent
-          <input value={form.opponent} onChange={set("opponent")} />
-        </label>
-        <label>
-          Locked (earlier games)
-          <input value={form.locked} onChange={set("locked")} placeholder="Kalista, Rumble, Azir" />
-        </label>
-        <label>
-          Banned (this draft)
-          <input value={form.banned} onChange={set("banned")} placeholder="Wukong" />
-        </label>
-        <button type="submit" disabled={busy}>
-          {busy ? "Planning…" : "Plan series"}
-        </button>
-      </form>
+      <main className="app">
+        <ol className="how" aria-label="How to use">
+          {STEPS.map(([t, d], i) => (
+            <li key={t}>
+              <span className="how-n">{i + 1}</span>
+              <div>
+                <b>{t}</b>
+                <div className="muted">{d}</div>
+              </div>
+            </li>
+          ))}
+        </ol>
 
-      {error && <p className="err" role="alert">{error}</p>}
+        <SeriesStrip
+          ctx={ctx}
+          games={games}
+          index={index}
+          onSelect={setIndex}
+          onFinish={onFinish}
+          onSwapSide={() => update({ ...game, ourSide: game.ourSide === "blue" ? "red" : "blue" })}
+        />
 
-      {plan && (
-        <>
-          <div className="grid2">
-            <WeakestTile label="Their weakest role right now" role={plan.opponent.roles[0]} who={plan.opponent.name} />
-            <WeakestTile label="Our weakest role right now" role={plan.ours.roles[0]} who={plan.ours.name} />
-          </div>
+        <DraftBoard ctx={ctx} games={games} index={index} onPick={onPick} onUndo={onUndo} onClear={() => update(emptyDraft(game.number, game.ourSide))} />
 
-          <div className="grid2">
-            <PoolRunwayCard team={plan.opponent} accent="var(--series-2)" title="opponent" />
-            <PoolRunwayCard team={plan.ours} accent="var(--series-1)" title="us" />
-          </div>
+        <div className="grid2">
+          <Insights ctx={ctx} them={view.them} us={view.us} gameNumber={game.number} jungler={activeJungler} />
+          <RiftMap bridge={activeJungler ? ctx.jungle_bridges[activeJungler] : undefined} side={sideOf(game, "them")} jungleOptions={view.jungleOptions} onChoose={setJungler} />
+        </div>
 
-          <BanPlan theirs={plan.opponent.ban_suggestions} ours={plan.ours.ban_suggestions} />
+        <div className="grid2">
+          <PlayerPools title={`${ctx.opponent.name}: comfort picks left`} accent="var(--side-them)" states={view.them} locked={view.locked} bannedNow={view.bannedNow} usedNow={view.used} />
+          <PlayerPools title={`${ctx.ours.name}: comfort picks left`} accent="var(--side-us)" states={view.us} locked={view.locked} bannedNow={view.bannedNow} usedNow={view.used} />
+        </div>
 
-          {forecast && games > 0 && (
-            <LineChart
-              title="Series forecast"
-              subtitle={`Mean share of the weakest role's pool left at the start of each game, ${plan.n_sims} simulated series from a fresh start.`}
-              xLabels={Array.from({ length: games }, (_, i) => `G${i + 1}`)}
-              series={forecast.map((f, i) => ({
-                id: f.team_id,
-                label: i === 0 ? plan.ours.name : plan.opponent.name,
-                color: i === 0 ? "var(--series-1)" : "var(--series-2)",
-                values: f.mean_stress,
-              }))}
-              ariaLabel="Forecast of the weakest role's pool left by game for both teams"
-            />
-          )}
+        <RecentForm team={ctx.opponent.name} games={ctx.opponent_recent} />
 
-          <BridgeCard bridges={plan.jungle_bridges} teamName={plan.opponent.name} />
+        {backtest && <TrustPanel data={backtest} />}
 
-          {plan.notes.length > 0 && (
-            <ul className="clean">
-              {plan.notes.map((n) => (
-                <li key={n}>{n}</li>
-              ))}
-            </ul>
-          )}
-        </>
-      )}
-
-      {backtest && <TrustPanel data={backtest} />}
-    </main>
+        <footer className="legal">
+          MacroDNA isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing
+          or managing Riot Games properties. Riot Games, and all associated properties are trademarks or registered trademarks of Riot Games, Inc.
+          Champion portraits are loaded from Riot's Data Dragon. Match data provided by GRID; not endorsed by Cloud9.
+        </footer>
+      </main>
+    </CatalogContext.Provider>
   );
 }

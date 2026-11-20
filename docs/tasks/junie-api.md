@@ -13,9 +13,9 @@ Implement the FastAPI back end described in `docs/api-contract.md`, using the re
    (DuckDB queries over the Parquet cache, returning the schema models) and a `macrodna serve` command in
    `src/macrodna/cli.py` that runs it with uvicorn on `127.0.0.1:8000`.
 2. Implement all endpoints in the contract, including the 404 rule for teams with fewer than 6 games and
-   the optional `event` filter on the profile. The three `/api/draft/*` endpoints wrap code that already exists:
+   the optional `event` filter on the profile. The `/api/draft/*` and `/api/series/context` endpoints wrap code that already exists:
    `macrodna.draft.planner.plan_series` / `jungle_bridge` and `draft_backtest.json`. Map their results to the
-   models in `schemas.py` (`SeriesPlanResponse`, `DraftBacktest`, `JungleBridge`); do not re-implement the maths.
+   models in `schemas.py` (`SeriesPlanResponse`, `DraftBacktest`, `JungleBridge`, `SeriesContext`); `SeriesContext` is what the web app's draft room loads first; do not re-implement the maths.
 3. Team and champion names come from `meta/teams.csv` and `meta/rosters.csv` under `STL_DATA_DIR`; if
    `rosters.csv` has no champion for a player, return `null`.
 4. Write tests in `tests/test_api.py` against a **tiny synthetic cache** that a fixture builds in a temp folder

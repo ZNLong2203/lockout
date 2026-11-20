@@ -1,4 +1,9 @@
-# MacroDNA web app
+# MacroDNA web app: the Fearless draft room
+
+A series view (earlier games lock their champions), an interactive draft board, plain-language insights with a ban
+shortlist, the opponent jungler on a stylised map drawn from our own geometry, comfort pools per player, and what
+repeats in the opponent's recent drafts. Champion portraits come from Riot's Data Dragon at runtime (never stored
+here); Riot's required notice is in the footer. No player photos or broadcast footage are used.
 
 React + TypeScript (Vite). Runs on **synthetic demo data** by default, so it works without the licensed data or the API.
 

@@ -264,3 +264,58 @@ class DraftBacktest(BaseModel):
         description="League-wide Fearless shift by game number"
     )
     caveats: list[str]
+
+
+# --- Draft room: everything the board needs for one matchup -----------------------------------------
+
+
+class ContextPoolEntry(BaseModel):
+    champion: str
+    share: float = Field(description="Share of the player's recency-weighted pool")
+    games: int
+
+
+class ContextPlayer(BaseModel):
+    player_id: str
+    name: str
+    role: Role
+    history: int = Field(description="Picks the pool is based on")
+    pool: list[ContextPoolEntry]
+
+
+class ContextTeam(BaseModel):
+    team_id: str
+    name: str
+    short: str
+    players: list[ContextPlayer] = Field(description="The team's most recent lineup, in role order")
+
+
+class RecentPick(BaseModel):
+    champion: str
+    role: Role
+
+
+class RecentGame(BaseModel):
+    game_id: str
+    date: str
+    opponent: str
+    side: Side
+    won: bool
+    duration_s: int
+    picks: list[RecentPick]
+    bans: list[str]
+
+
+class SeriesContext(BaseModel):
+    """The draft room for one matchup. The games of the live series are entered by the coach in the UI."""
+
+    ours: ContextTeam
+    opponent: ContextTeam
+    format: int = 5
+    opponent_recent: list[RecentGame] = Field(description="Opponent's last 5 games, newest first")
+    jungle_bridges: dict[str, JungleBridge] = Field(
+        description="Keyed by champion, for the opponent jungler's pool"
+    )
+    league_top3_share_by_game: list[float] = Field(
+        description="From draft_backtest.json pick_depth.share_top3"
+    )

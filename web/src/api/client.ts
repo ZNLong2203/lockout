@@ -1,3 +1,5 @@
+import { DEMO_SERIES } from "../demo/series";
+import type { SeriesContext } from "../lib/draft";
 import { MOCK_BACKTEST, mockPlan } from "./fixtures";
 import type { DraftBacktest, PlanQuery, SeriesPlanResponse } from "./types";
 
@@ -26,4 +28,12 @@ export async function fetchPlan(q: PlanQuery): Promise<SeriesPlanResponse> {
 
 export async function fetchBacktest(): Promise<DraftBacktest> {
   return isLive ? getJson<DraftBacktest>("/api/draft/backtest") : MOCK_BACKTEST;
+}
+
+/** Teams, player pools, the opponent's recent drafts and jungle bridges. Games of the live series are entered by the coach. */
+export async function fetchContext(team = "", opponent = ""): Promise<SeriesContext> {
+  if (!isLive) return DEMO_SERIES;
+  const params = new URLSearchParams({ team, opponent });
+  const ctx = await getJson<Omit<SeriesContext, "games">>(`/api/series/context?${params}`);
+  return { ...ctx, games: [] };
 }

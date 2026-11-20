@@ -1,23 +1,23 @@
 # Architecture
 
-MacroDNA is a local-first pipeline: GRID feeds go in, a private Parquet cache is built, a read-only API serves
+Lockout is a local-first pipeline: GRID feeds go in, a private Parquet cache is built, a read-only API serves
 aggregates from it, and a static web app shows them. Nothing derived from the licensed data leaves the machine.
 
 ```
 GRID feeds (.zst, outside the repo)
-   │  macrodna etl                 streams each series: positions, events, draft
+   │  lockout etl                 streams each series: positions, events, draft
    ▼
 private/cache/lol/*.parquet        gitignored; tracks/ holds 1 Hz positions per series
-   │  macrodna detect              roles, jungle opening, objective set-up, tells
-   │  macrodna draft-build         enriched draft table, pool backtest, pick depth by game
+   │  lockout detect              roles, jungle opening, objective set-up, tells
+   │  lockout draft-build         enriched draft table, pool backtest, pick depth by game
    ▼
-macrodna serve  (FastAPI, 127.0.0.1:8000)     read-only, schemas in src/macrodna/api/schemas.py
+lockout serve  (FastAPI, 127.0.0.1:8000)     read-only, schemas in src/lockout/api/schemas.py
    │  /api/...                     JSON, every rate with its n
    ▼
 web/ (React + TypeScript, Vite)    proxies /api; runs on synthetic demo data without the API
 ```
 
-## Back end (`src/macrodna/`)
+## Back end (`src/lockout/`)
 
 | Module | Role |
 |---|---|
@@ -75,7 +75,7 @@ Three hash-routed pages in one static bundle (no server rewrite rules, every vie
 ## IDE
 
 The project opens in PyCharm with the `.venv` interpreter. Shared run configurations live in `.run/` (tests, lint,
-each `macrodna` command, the API, the web app, and a compound "Full stack (API + web live)" that starts both).
+each `lockout` command, the API, the web app, and a compound "Full stack (API + web live)" that starts both).
 
 ## Data licence
 

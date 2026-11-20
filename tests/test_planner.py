@@ -10,8 +10,8 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from macrodna.draft.planner import PickIndex, jungle_bridge, plan_series, team_state
-from macrodna.draft.pools import MIN_HISTORY, PickRec
+from lockout.draft.planner import PickIndex, jungle_bridge, plan_series, team_state
+from lockout.draft.pools import MIN_HISTORY, PickRec
 
 T0 = datetime(2026, 1, 1, tzinfo=UTC)
 ROLES = ("top", "jungle", "mid", "adc", "support")

@@ -14,9 +14,9 @@ from pathlib import Path
 
 import duckdb
 
-from macrodna.draft.analysis import load_picks
-from macrodna.draft.pools import MIN_HISTORY, PickRec, RoleRunway, ban_targets, pool_weights, runway
-from macrodna.draft.simulate import SeriesForecast, SimPlayer, simulate
+from lockout.draft.analysis import load_picks
+from lockout.draft.pools import MIN_HISTORY, PickRec, RoleRunway, ban_targets, pool_weights, runway
+from lockout.draft.simulate import SeriesForecast, SimPlayer, simulate
 
 ROLE_ORDER = ("top", "jungle", "mid", "adc", "support")
 

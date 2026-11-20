@@ -1,4 +1,4 @@
-// Mirrors src/macrodna/api/schemas.py. Keep the two in sync; the contract is docs/api-contract.md.
+// Mirrors src/lockout/api/schemas.py. Keep the two in sync; the contract is docs/api-contract.md.
 
 export type Side = "blue" | "red";
 export type Strength = "strong" | "suggestive" | "typical";

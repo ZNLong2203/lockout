@@ -1,5 +1,5 @@
 [project]
-name = "macrodna"
+name = "lockout"
 version = "0.1.0"
 description = "Macro scouting for League of Legends from player trajectories: opponent fingerprints, evidence-backed tells, 2D replay."
 readme = "README.md"
@@ -26,14 +26,14 @@ dev = [
 ]
 
 [project.scripts]
-macrodna = "macrodna.cli:app"
+lockout = "lockout.cli:app"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/macrodna"]
+packages = ["src/lockout"]
 
 [tool.ruff]
 line-length = 100

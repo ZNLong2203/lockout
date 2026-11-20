@@ -1,6 +1,6 @@
 # Methodology
 
-MacroDNA reads the official GRID League of Legends feeds (745 series, 1,739 games: LCK, LEC, LTA, LCS) and
+Lockout reads the official GRID League of Legends feeds (745 series, 1,739 games: LCK, LEC, LTA, LCS) and
 produces opponent scouting that a coach can check. Every claim carries **evidence** (game and game-clock
 time) and a **sample size**. See [data-audit.md](data-audit.md) for what the feed does and does not contain.
 
@@ -71,7 +71,7 @@ champion is locked for **both** teams, so a player's comfortable pool shrinks ga
 - **Macro bridge**: for a jungle champion, how that jungler opens and where they appear first, from the jungle
   detector (team level when the team has played it, league level otherwise, always with `n`).
 
-What the backtest says (no look-ahead; reproduce with `macrodna draft-build`):
+What the backtest says (no look-ahead; reproduce with `lockout draft-build`):
 
 | Claim | Result | Reading |
 |---|---|---|

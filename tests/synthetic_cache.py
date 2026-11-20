@@ -20,7 +20,7 @@ from pathlib import Path
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from macrodna.config import Settings
+from lockout.config import Settings
 
 ROLES = ("top", "jungle", "mid", "adc", "support")
 TEAMS = {"t1": "Alpha Team", "t2": "Bravo Team", "t3": "Charlie Team"}

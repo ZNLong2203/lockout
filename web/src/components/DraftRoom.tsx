@@ -115,7 +115,7 @@ export function DraftRoom({ teams, matchup, onMatchup }: Props) {
       <header className="hero">
         <div className="app hero-inner">
           <div>
-            <div className="brand">MacroDNA</div>
+            <div className="brand">Lockout</div>
             <h1>Fearless draft room</h1>
             <p className="hero-sub">Plan a whole series: who runs out of champions first, what to ban, what to save.</p>
           </div>
@@ -133,7 +133,7 @@ export function DraftRoom({ teams, matchup, onMatchup }: Props) {
               <span className={`side-dot ${sideOf(game, "them")}`} aria-hidden />
             </div>
           </div>
-          <span className={`badge ${isLive ? "" : "demo"}`}>{isLive ? "Live data" : "Demo: synthetic teams and numbers"}</span>
+          {!isLive && <span className="badge demo">Demo: synthetic teams and numbers</span>}
         </div>
       </header>
 

@@ -13,8 +13,8 @@ from pathlib import Path
 import duckdb
 import numpy as np
 
-from macrodna.detectors.objectives import GRUB_WAVE_GAP, objective_type
-from macrodna.geometry import LANE_NAMES, lane_distance
+from lockout.detectors.objectives import GRUB_WAVE_GAP, objective_type
+from lockout.geometry import LANE_NAMES, lane_distance
 
 KILL_LANE_RADIUS = 1500.0
 OTHER = {"blue": "red", "red": "blue"}

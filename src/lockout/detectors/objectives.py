@@ -22,8 +22,8 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from macrodna.geometry import BARON_PIT, DRAGON_PIT, GRUB_PIT, HERALD_PIT
-from macrodna.store import GameTrack, iter_game_tracks
+from lockout.geometry import BARON_PIT, DRAGON_PIT, GRUB_PIT, HERALD_PIT
+from lockout.store import GameTrack, iter_game_tracks
 
 AREA_RADIUS = 2500.0  # "in the objective area": the pit plus its approaches
 PIT_RADIUS = 1300.0  # "inside the pit"

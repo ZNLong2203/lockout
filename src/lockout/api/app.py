@@ -1,4 +1,4 @@
-"""The MacroDNA HTTP API: a read-only view of the local cache.
+"""The Lockout HTTP API: a read-only view of the local cache.
 
 The contract is ``docs/api-contract.md``; the response models are in ``schemas.py``. Every route declares
 its ``response_model``, so nothing outside the schemas can leave the server (no raw feed content).
@@ -11,9 +11,9 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, FastAPI, Query, Request
 from fastapi.responses import JSONResponse
 
-from macrodna.api import schemas as s
-from macrodna.api.queries import NotFoundError, Repository
-from macrodna.config import Settings, load_settings
+from lockout.api import schemas as s
+from lockout.api.queries import NotFoundError, Repository
+from lockout.config import Settings, load_settings
 
 Name = Annotated[str, Query(min_length=1, description="A team id, or part of a team name")]
 
@@ -26,9 +26,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     """Build the app. Raises ``CacheNotReadyError`` when the cache or the team names are missing."""
     repo = Repository(settings or load_settings())
     app = FastAPI(
-        title="MacroDNA API",
+        title="Lockout API",
         version="0.1.0",
-        description="Read-only API over the MacroDNA cache: scouting profiles, replays and Fearless "
+        description="Read-only API over the Lockout cache: scouting profiles, replays and Fearless "
         "draft planning. Every rate comes with its sample size.",
     )
 

@@ -21,7 +21,7 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from macrodna.geometry import nearest_lane_distance
+from lockout.geometry import nearest_lane_distance
 
 ROLES = ("top", "jungle", "mid", "adc", "support")
 SUPPORT_ITEM = "World Atlas"

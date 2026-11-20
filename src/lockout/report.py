@@ -7,8 +7,8 @@ from pathlib import Path
 
 import typer
 
-from macrodna.config import Settings
-from macrodna.draft.planner import PickIndex, SeriesPlan, TeamState, jungle_bridge
+from lockout.config import Settings
+from lockout.draft.planner import PickIndex, SeriesPlan, TeamState, jungle_bridge
 
 
 def team_names(settings: Settings) -> dict[str, str]:

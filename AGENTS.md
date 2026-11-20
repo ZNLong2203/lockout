@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Rules for AI coding agents (Claude Code, Junie, JetBrains Air, Codex, …) working on MacroDNA.
+Rules for AI coding agents (Claude Code, Junie, JetBrains Air, Codex, …) working on Lockout.
 
 ## Data license (most important)
 
@@ -19,7 +19,7 @@ The Sky's The Limit 2026 GRID data is proprietary and licensed for the hackathon
 ## Project layout
 
 ```
-src/macrodna/    Python package: ETL, analysis (macro detectors), API
+src/lockout/    Python package: ETL, analysis (macro detectors), API
 web/             React + TypeScript front-end (2D replay, scouting views)
 tests/           pytest
 docs/            PUBLIC documentation (methodology, architecture)

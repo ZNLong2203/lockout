@@ -1,4 +1,4 @@
-// Geometry of our own stylised Summoner's Rift, measured from the GRID data (src/macrodna/geometry.py).
+// Geometry of our own stylised Summoner's Rift, measured from the GRID data (src/lockout/geometry.py).
 // No Riot map art is used. Game units run 0..15000 with y pointing up; the SVG flips y with `P`.
 export const S = 15000;
 

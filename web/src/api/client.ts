@@ -15,7 +15,7 @@ import type {
   TendencyScope,
 } from "./types";
 
-// Set VITE_API=live (and run `macrodna serve`) to use the real API; otherwise the app runs on synthetic data.
+// Set VITE_API=live (and run `lockout serve`) to use the real API; otherwise the app runs on synthetic data.
 export const isLive = import.meta.env.VITE_API === "live";
 
 async function getJson<T>(url: string): Promise<T> {

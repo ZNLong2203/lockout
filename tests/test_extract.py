@@ -7,7 +7,7 @@ from typing import Any
 import numpy as np
 import orjson
 
-from macrodna.etl.extract import MAX_GAME_S, extract_series, parse_duration
+from lockout.etl.extract import MAX_GAME_S, extract_series, parse_duration
 
 BLUE = ["b0", "b1", "b2", "b3", "b4"]
 RED = ["r0", "r1", "r2", "r3", "r4"]

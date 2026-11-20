@@ -50,7 +50,7 @@ export default function App() {
     <CatalogContext.Provider value={catalog}>
       <nav className="topnav" aria-label="Pages">
         <div className="app topnav-inner">
-          <span className="brand">MacroDNA</span>
+          <span className="brand">Lockout</span>
           <ul>
             {PAGES.map((p) => (
               <li key={p.page}>
@@ -60,7 +60,6 @@ export default function App() {
               </li>
             ))}
           </ul>
-          <span className={`badge ${isLive ? "" : "demo"}`}>{isLive ? "Live data" : "Demo: synthetic teams and numbers"}</span>
         </div>
       </nav>
 
@@ -69,7 +68,7 @@ export default function App() {
       {route.page === "replay" && <ReplayPage gameId={route.game} startAt={route.t} />}
 
       <footer className="app legal">
-        MacroDNA isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing
+        Lockout isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing
         or managing Riot Games properties. Riot Games, and all associated properties are trademarks or registered trademarks of Riot Games, Inc.
         Champion portraits are loaded from Riot's Data Dragon. Match data provided by GRID; not endorsed by Cloud9.
       </footer>

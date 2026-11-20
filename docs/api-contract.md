@@ -1,7 +1,7 @@
 # API contract
 
 Read-only HTTP API over the local cache. Models live in
-[`src/macrodna/api/schemas.py`](../src/macrodna/api/schemas.py) and are the source of truth.
+[`src/lockout/api/schemas.py`](../src/lockout/api/schemas.py) and are the source of truth.
 Base path `/api`. Errors use standard HTTP codes with a JSON `{"detail": "..."}` body.
 
 | Method and path | Returns | Notes |
@@ -10,9 +10,9 @@ Base path `/api`. Errors use standard HTTP codes with a JSON `{"detail": "..."}`
 | `GET /api/teams?q=&event=` | `TeamSummary[]` | `q` is a case-insensitive name filter, `event` an exact event name |
 | `GET /api/teams/{team_id}/profile?event=` | `TeamProfile` | `event` restricts every aggregate to one split/league |
 | `GET /api/teams/{team_id}/tells/{template_id}/evidence` | `EvidenceItem[]` | One item per occurrence, newest first |
-| `GET /api/teams/{team_id}/draft-tendencies?scope=` | `TeamDraftTendencies` | `scope` is `all` (default), `g1` or `later`. Rates versus the league plus the Fearless shift by game; logic is `macrodna.draft.tendencies.tendency_report`. 404 below 6 games in scope |
+| `GET /api/teams/{team_id}/draft-tendencies?scope=` | `TeamDraftTendencies` | `scope` is `all` (default), `g1` or `later`. Rates versus the league plus the Fearless shift by game; logic is `lockout.draft.tendencies.tendency_report`. 404 below 6 games in scope |
 | `GET /api/games/{game_id}/replay` | `Replay` | One position per second per player; events are `kill`, `objective`, `structure`, `spawn`, `respawn` only. 404 when no positions are stored |
-| `GET /api/draft/plan?team=&opponent=&locked=&banned=` | `SeriesPlanResponse` | `team` and `opponent` are a team id or part of a name (see below); `locked` and `banned` are comma-separated champion names; the logic is `macrodna.draft.planner.plan_series`. `jungle_bridges` covers the opponent jungler's five best remaining champions |
+| `GET /api/draft/plan?team=&opponent=&locked=&banned=` | `SeriesPlanResponse` | `team` and `opponent` are a team id or part of a name (see below); `locked` and `banned` are comma-separated champion names; the logic is `lockout.draft.planner.plan_series`. `jungle_bridges` covers the opponent jungler's five best remaining champions |
 | `GET /api/series/context?team=&opponent=` | `SeriesContext` | Powers the draft room. Lineups from `PickIndex.current_lineup`, pools from `pool_weights` (top 8 champions per player), opponent's last 5 games from `draft_enriched`, `jungle_bridge` for each champion in the opponent jungler's pool, `league_top3_share_by_game` from `draft_backtest.json` |
 | `GET /api/draft/backtest` | `DraftBacktest` | Read `draft_backtest.json` from the cache; do not recompute |
 | `GET /api/draft/bridge?champion=&team=` | `JungleBridge` | `scope` is `team` when that team has the champion, else `league`; 404 if never played |
@@ -32,11 +32,11 @@ with draft history match; when several do, the most recently active wins. No mat
 4. Tell `strength` comes straight from the cache (`tells.parquet`); do not recompute statistics in the API.
 5. League baselines come from the cache; objectives' `league_mean_players_m30` is the mean over all teams
    (inside the event when `event` is given). Jungle routes are grouped by their first three camps.
-6. The API reads the cache from `MACRODNA_CACHE_DIR` (default `private/cache/lol`) and team/champion names from
+6. The API reads the cache from `LOCKOUT_CACHE_DIR` (default `private/cache/lol`) and team/champion names from
    `STL_DATA_DIR/meta`. It must start with a clear error if either is missing.
 
 ## Cache tables (Parquet, under `private/cache/lol/`)
 
 `games`, `players`, `roles`, `events`, `draft`, `draft_enriched`, `jungle`, `objectives`, `tells`,
-`tell_evidence`, `tracks/*.parquet`, and `draft_backtest.json`. Column lists are in `src/macrodna/etl/build.py`, `detectors/jungle.py`,
+`tell_evidence`, `tracks/*.parquet`, and `draft_backtest.json`. Column lists are in `src/lockout/etl/build.py`, `detectors/jungle.py`,
 `detectors/objectives.py` and `detectors/tells.py`.

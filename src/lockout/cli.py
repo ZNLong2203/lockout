@@ -1,17 +1,17 @@
-"""Command line entry point: ``uv run macrodna --help``."""
+"""Command line entry point: ``uv run lockout --help``."""
 
 from __future__ import annotations
 
 import typer
 
-from macrodna.config import load_settings
+from lockout.config import load_settings
 
-app = typer.Typer(help="MacroDNA: macro scouting for League of Legends.", no_args_is_help=True)
+app = typer.Typer(help="Lockout: macro scouting for League of Legends.", no_args_is_help=True)
 
 
 @app.callback()
 def main() -> None:
-    """Keep ``macrodna`` a command group even while it has a single subcommand."""
+    """Keep ``lockout`` a command group even while it has a single subcommand."""
 
 
 @app.command()
@@ -37,8 +37,8 @@ def etl(
     """Build the local Parquet cache (positions, events, draft) from the GRID feeds."""
     from pathlib import Path
 
-    from macrodna.etl.build import build_cache
-    from macrodna.roles import write_roles
+    from lockout.etl.build import build_cache
+    from lockout.roles import write_roles
 
     settings = load_settings()
     summary = build_cache(settings, limit=limit or None, workers=workers or None)
@@ -57,14 +57,14 @@ def etl(
 @app.command()
 def detect() -> None:
     """Run the macro detectors over the cache and write their result tables."""
-    from macrodna.detectors.jungle import write_jungle
-    from macrodna.detectors.objectives import write_objectives
-    from macrodna.detectors.tells import write_tells
+    from lockout.detectors.jungle import write_jungle
+    from lockout.detectors.objectives import write_objectives
+    from lockout.detectors.tells import write_tells
 
     settings = load_settings()
     out = settings.cache_dir / "lol"
     if not (out / "roles.parquet").exists():
-        typer.secho("No cache found: run `macrodna etl` first.", fg=typer.colors.RED, err=True)
+        typer.secho("No cache found: run `lockout etl` first.", fg=typer.colors.RED, err=True)
         raise typer.Exit(1)
     typer.echo(f"jungle fingerprints: {write_jungle(out)} junglers")
     typer.echo(f"objective setups: {write_objectives(out)} team-objective rows")
@@ -75,17 +75,17 @@ def detect() -> None:
 @app.command()
 def draft_build() -> None:
     """Build the enriched draft table used by the draft features."""
-    from macrodna.draft.enrich import build_draft_table
+    from lockout.draft.enrich import build_draft_table
 
     settings = load_settings()
     out = settings.cache_dir / "lol"
     if not (out / "roles.parquet").exists():
-        typer.secho("No cache found: run `macrodna etl` first.", fg=typer.colors.RED, err=True)
+        typer.secho("No cache found: run `lockout etl` first.", fg=typer.colors.RED, err=True)
         raise typer.Exit(1)
     from dataclasses import asdict
 
-    from macrodna.draft.analysis import load_picks, write_backtest
-    from macrodna.draft.tendencies import pick_depth_by_game
+    from lockout.draft.analysis import load_picks, write_backtest
+    from lockout.draft.tendencies import pick_depth_by_game
 
     n = build_draft_table(out, settings.meta_dir, settings.lol_dir)
     typer.echo(f"draft table: {n} actions")
@@ -107,8 +107,8 @@ def plan(
     banned: str = typer.Option("", help="Champions banned in the current draft, comma separated."),
 ) -> None:
     """Fearless series planner: pool state, ban targets and a forecast for both teams."""
-    from macrodna.draft.planner import PickIndex, plan_series
-    from macrodna.report import format_plan, resolve_team
+    from lockout.draft.planner import PickIndex, plan_series
+    from lockout.report import format_plan, resolve_team
 
     settings = load_settings()
     cache = settings.cache_dir / "lol"
@@ -131,15 +131,15 @@ def tendencies(
     top: int = typer.Option(8, help="Rows per list."),
 ) -> None:
     """Pick/ban tendencies of a team versus the league, and how its draft shifts in Fearless games."""
-    from macrodna.draft.analysis import load_picks
-    from macrodna.draft.planner import PickIndex
-    from macrodna.draft.tendencies import (
+    from lockout.draft.analysis import load_picks
+    from lockout.draft.planner import PickIndex
+    from lockout.draft.tendencies import (
         MIN_TEAM_GAMES,
         SCOPES,
         load_draft_rows,
         tendency_report,
     )
-    from macrodna.report import resolve_team
+    from lockout.report import resolve_team
 
     if scope not in SCOPES:
         raise typer.BadParameter(f"scope must be one of {', '.join(SCOPES)}")
@@ -189,8 +189,8 @@ def serve(
     """Serve the read-only HTTP API over the local cache (docs at /docs)."""
     import uvicorn
 
-    from macrodna.api.app import create_app
-    from macrodna.api.queries import CacheNotReadyError
+    from lockout.api.app import create_app
+    from lockout.api.queries import CacheNotReadyError
 
     try:
         api = create_app(load_settings())

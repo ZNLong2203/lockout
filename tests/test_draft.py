@@ -6,14 +6,14 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from macrodna.draft.analysis import (
+from lockout.draft.analysis import (
     bucketise,
     depletion_curve,
     locked_before,
     stress_rows,
     weakest_role_share,
 )
-from macrodna.draft.pools import (
+from lockout.draft.pools import (
     MIN_HISTORY,
     PickRec,
     ban_targets,
@@ -23,7 +23,7 @@ from macrodna.draft.pools import (
     stress,
     weight,
 )
-from macrodna.draft.simulate import SimPlayer, simulate
+from lockout.draft.simulate import SimPlayer, simulate
 
 T0 = datetime(2026, 1, 1, tzinfo=UTC)
 
@@ -187,7 +187,7 @@ def test_simulation_is_reproducible_and_pools_only_shrink() -> None:
 
 
 def test_pairwise_result_compares_the_two_teams_of_a_game() -> None:
-    from macrodna.draft.analysis import StressRow, pairwise_result
+    from lockout.draft.analysis import StressRow, pairwise_result
 
     rows = []
     for i in range(10):  # in 8 of 10 games the team with the more comfortable pool wins

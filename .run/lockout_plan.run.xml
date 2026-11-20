@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="macrodna draft-build" type="PythonConfigurationType" factoryName="Python">
-    <module name="macrodna" />
+  <configuration default="false" name="lockout plan" type="PythonConfigurationType" factoryName="Python">
+    <module name="lockout" />
     <option name="ENV_FILES" value="" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
@@ -12,8 +12,8 @@
     <option name="IS_MODULE_SDK" value="true" />
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
-    <option name="SCRIPT_NAME" value="macrodna.cli" />
-    <option name="PARAMETERS" value="draft-build" />
+    <option name="SCRIPT_NAME" value="lockout.cli" />
+    <option name="PARAMETERS" value='plan "Cloud9" "100 Thieves"' />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="true" />

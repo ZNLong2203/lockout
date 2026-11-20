@@ -21,9 +21,9 @@ from pathlib import Path
 import duckdb
 from scipy.stats import binomtest
 
-from macrodna.detectors.tells import benjamini_hochberg
-from macrodna.draft.analysis import _index
-from macrodna.draft.pools import PickRec, runway
+from lockout.detectors.tells import benjamini_hochberg
+from lockout.draft.analysis import _index
+from lockout.draft.pools import PickRec, runway
 
 MIN_COUNT = 4  # a champion needs this many appearances (or this many expected) to be tested
 MIN_TEAM_GAMES = 6  # fewer games than this and a team gets no tendency report, never empty numbers

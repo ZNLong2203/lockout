@@ -1,6 +1,6 @@
 """Keep the web app's types in step with the API schemas.
 
-``web/src/api/types.ts`` mirrors ``src/macrodna/api/schemas.py`` by hand. This test fails as soon as a field
+``web/src/api/types.ts`` mirrors ``src/lockout/api/schemas.py`` by hand. This test fails as soon as a field
 is added, removed, renamed or made nullable on one side only, so a contract drift shows up in CI rather
 than as a blank panel in the demo.
 """
@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 from pydantic import BaseModel
 
-from macrodna.api import schemas
+from lockout.api import schemas
 
 TYPES_TS = Path(__file__).resolve().parents[1] / "web" / "src" / "api" / "types.ts"
 

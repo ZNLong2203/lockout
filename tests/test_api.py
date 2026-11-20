@@ -10,10 +10,10 @@ import pytest
 from pydantic import BaseModel
 
 from asgi_client import AsgiClient
-from macrodna.api import schemas as s
-from macrodna.api.app import create_app
-from macrodna.api.queries import CacheNotReadyError
-from macrodna.config import Settings
+from lockout.api import schemas as s
+from lockout.api.app import create_app
+from lockout.api.queries import CacheNotReadyError
+from lockout.config import Settings
 from synthetic_cache import EVENT_A, EVENT_B, NO_CHAMPION, ROLES, build_synthetic_cache
 
 REPO = Path(__file__).resolve().parents[1]
@@ -301,7 +301,7 @@ def test_openapi_lists_every_endpoint_of_the_contract(client: AsgiClient) -> Non
 
 def test_the_server_refuses_to_start_without_a_cache(tmp_path: Path, settings: Settings) -> None:
     empty = Settings(data_dir=settings.data_dir, cache_dir=tmp_path / "nothing")
-    with pytest.raises(CacheNotReadyError, match=r"macrodna etl"):
+    with pytest.raises(CacheNotReadyError, match=r"lockout etl"):
         create_app(empty)
 
 

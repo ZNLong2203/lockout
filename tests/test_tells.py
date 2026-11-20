@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from macrodna.detectors.tells import (
+from lockout.detectors.tells import (
     TEMPLATES,
     Attempt,
     Template,
@@ -16,7 +16,7 @@ from macrodna.detectors.tells import (
     score_tells,
     wilson_interval,
 )
-from macrodna.facts import GameFacts, JungleFact, KillFact, Obj, Setup, Struct
+from lockout.facts import GameFacts, JungleFact, KillFact, Obj, Setup, Struct
 
 
 def _game(gid: str = "g", **kw) -> GameFacts:

@@ -23,7 +23,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from scipy.stats import binomtest
 
-from macrodna.facts import OTHER, GameFacts, load_facts
+from lockout.facts import OTHER, GameFacts, load_facts
 
 MIN_ATTEMPTS = 6  # fewer occurrences than this are never reported as a tell
 SHRINK_STRENGTH = 10.0  # pseudo-observations pulling a team's rate toward the league rate

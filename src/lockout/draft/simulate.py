@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from macrodna.draft.pools import CRITICAL_MASS
+from lockout.draft.pools import CRITICAL_MASS
 
 
 @dataclass(frozen=True, slots=True)

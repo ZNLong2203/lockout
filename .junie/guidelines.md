@@ -1,6 +1,6 @@
 # Project guidelines for Junie
 
-MacroDNA: macro scouting for League of Legends from player trajectories (Python back end, React/TypeScript
+Lockout: macro scouting for League of Legends from player trajectories (Python back end, React/TypeScript
 front end). Read `AGENTS.md` first: it holds the data-license rules, which are strict.
 
 ## Hard rules
@@ -18,8 +18,8 @@ uv sync                       # install
 uv run pytest                 # tests (must stay green)
 uv run ruff check src tests   # lint
 uv run ruff format src tests  # format
-uv run macrodna etl           # build the local cache (needs the data repo, see README)
-uv run macrodna detect        # run the detectors on the cache
+uv run lockout etl           # build the local cache (needs the data repo, see README)
+uv run lockout detect        # run the detectors on the cache
 ```
 
 ## Conventions
@@ -27,5 +27,5 @@ uv run macrodna detect        # run the detectors on the cache
 - Python 3.12+, type hints everywhere, `ruff` clean, tests next to the behaviour they cover in `tests/`.
 - Commits follow Conventional Commits (`feat(api): ...`, `fix: ...`, `test: ...`, `docs: ...`).
 - Every number shown to a coach carries its sample size `n` and, where relevant, its evidence (game, time).
-- The API contract is `docs/api-contract.md` and `src/macrodna/api/schemas.py`. Do not change a field name
+- The API contract is `docs/api-contract.md` and `src/lockout/api/schemas.py`. Do not change a field name
   without updating both and telling the front-end owner.

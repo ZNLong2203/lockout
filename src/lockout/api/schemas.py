@@ -1,4 +1,4 @@
-"""Response models of the MacroDNA HTTP API (the contract between back end and front end).
+"""Response models of the Lockout HTTP API (the contract between back end and front end).
 
 The API is read-only and serves aggregates and per-game replays computed from the local cache. Field names
 here are the source of truth: FastAPI publishes them as OpenAPI at ``/openapi.json`` and the web app is

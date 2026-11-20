@@ -1,7 +1,7 @@
 """Read-only queries behind the HTTP API.
 
 Everything is read from the local Parquet cache with DuckDB and mapped onto the models in
-:mod:`macrodna.api.schemas`. The maths lives elsewhere (``macrodna.draft``, ``macrodna.detectors``): this
+:mod:`lockout.api.schemas`. The maths lives elsewhere (``lockout.draft``, ``lockout.detectors``): this
 module only selects, joins and reshapes. In particular tell statistics are read from ``tells.parquet``, never
 recomputed here.
 
@@ -24,21 +24,21 @@ from typing import Any, Literal
 import duckdb
 import numpy as np
 
-from macrodna.api import schemas as s
-from macrodna.config import Settings
-from macrodna.detectors.tells import wilson_interval
-from macrodna.draft.planner import PickIndex, SeriesPlan, TeamState, jungle_bridge, plan_series
-from macrodna.draft.pools import pool_weights
-from macrodna.draft.tendencies import (
+from lockout.api import schemas as s
+from lockout.config import Settings
+from lockout.detectors.tells import wilson_interval
+from lockout.draft.planner import PickIndex, SeriesPlan, TeamState, jungle_bridge, plan_series
+from lockout.draft.pools import pool_weights
+from lockout.draft.tendencies import (
     MIN_TEAM_GAMES,
     DraftRow,
     TendencyReport,
     load_draft_rows,
     tendency_report,
 )
-from macrodna.geometry import MAP_BOUNDS
+from lockout.geometry import MAP_BOUNDS
 
-#: tables the API needs; ``macrodna etl``, ``detect`` and ``draft-build`` write them
+#: tables the API needs; ``lockout etl``, ``detect`` and ``draft-build`` write them
 REQUIRED_TABLES = (
     "games",
     "players",
@@ -81,8 +81,8 @@ def check_ready(settings: Settings) -> None:
     if missing:
         raise CacheNotReadyError(
             f"Cache incomplete at {cache} (missing: {', '.join(missing)}). "
-            "Run `macrodna etl`, `macrodna detect` and `macrodna draft-build`, "
-            "or point MACRODNA_CACHE_DIR at a finished cache."
+            "Run `lockout etl`, `lockout detect` and `lockout draft-build`, "
+            "or point LOCKOUT_CACHE_DIR at a finished cache."
         )
     absent = [f for f in ("teams.csv", "rosters.csv") if not (settings.meta_dir / f).exists()]
     if absent:
@@ -682,7 +682,7 @@ class Repository:
     def backtest(self) -> s.DraftBacktest:
         path = self.cache / "draft_backtest.json"
         if not path.exists():
-            raise NotFoundError("draft_backtest.json not found: run `macrodna draft-build`.")
+            raise NotFoundError("draft_backtest.json not found: run `lockout draft-build`.")
         return s.DraftBacktest.model_validate(json.loads(path.read_text(encoding="utf-8")))
 
     # -- tendencies -----------------------------------------------------------------------------------------

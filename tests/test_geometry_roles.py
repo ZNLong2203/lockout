@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from macrodna.geometry import BARON_PIT, DRAGON_PIT, LANES, lane_distance, nearest_lane_distance
-from macrodna.roles import assign_team
+from lockout.geometry import BARON_PIT, DRAGON_PIT, LANES, lane_distance, nearest_lane_distance
+from lockout.roles import assign_team
 
 
 def test_points_on_a_lane_have_zero_distance() -> None:

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from macrodna.detectors.jungle import analyse_jungler, camp_visits, route_of
-from macrodna.geometry import (
+from lockout.detectors.jungle import analyse_jungler, camp_visits, route_of
+from lockout.geometry import (
     JUNGLE_CAMPS,
     lane_progress_from_base,
     own_outer_tower_progress,
@@ -59,7 +59,7 @@ def test_red_side_route_is_read_in_the_blue_frame() -> None:
 def test_first_lane_arrival_requires_reaching_the_own_outer_tower() -> None:
     lane = "mid"
     # Walk along the mid lane from the blue end; the first sample at/after the outer tower is "arrival".
-    from macrodna.geometry import LANES
+    from lockout.geometry import LANES
 
     path = np.array(LANES[lane], dtype=float)
     t = np.arange(100, 100 + 10 * len(path), 10)

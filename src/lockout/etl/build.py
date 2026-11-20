@@ -17,8 +17,8 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from macrodna.config import Settings
-from macrodna.etl.extract import GameData, extract_file
+from lockout.config import Settings
+from lockout.etl.extract import GameData, extract_file
 
 _SERIES_RE = re.compile(r"events_(\d+)_grid")
 

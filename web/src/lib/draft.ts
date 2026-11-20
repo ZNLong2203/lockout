@@ -1,4 +1,4 @@
-// Fearless draft model used by the board. The maths mirrors src/macrodna/draft/pools.py so the board can react
+// Fearless draft model used by the board. The maths mirrors src/lockout/draft/pools.py so the board can react
 // instantly to every click; the API supplies the pools and the forecast.
 import type {
   ContextPlayer,

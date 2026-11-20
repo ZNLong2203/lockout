@@ -2,7 +2,7 @@
 
 The hackathon data is proprietary and must live OUTSIDE this repository.
 ``STL_DATA_DIR`` points at a local clone of the data repo; every derived artefact
-is written under ``MACRODNA_CACHE_DIR`` (default ``private/cache``, which is gitignored).
+is written under ``LOCKOUT_CACHE_DIR`` (default ``private/cache``, which is gitignored).
 """
 
 from __future__ import annotations
@@ -66,5 +66,5 @@ def _refuse_cache_outside_private(cache_dir: Path) -> None:
 
 def load_settings() -> Settings:
     data_dir = Path(os.environ.get("STL_DATA_DIR", DEFAULT_DATA_DIR)).expanduser()
-    cache_dir = Path(os.environ.get("MACRODNA_CACHE_DIR", DEFAULT_CACHE_DIR)).expanduser()
+    cache_dir = Path(os.environ.get("LOCKOUT_CACHE_DIR", DEFAULT_CACHE_DIR)).expanduser()
     return Settings(data_dir=data_dir, cache_dir=cache_dir)

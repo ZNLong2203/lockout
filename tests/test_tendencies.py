@@ -6,8 +6,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from macrodna.draft.pools import MIN_HISTORY, PickRec
-from macrodna.draft.tendencies import (
+from lockout.draft.pools import MIN_HISTORY, PickRec
+from lockout.draft.tendencies import (
     MIN_TEAM_GAMES,
     DraftRow,
     ban_role_targeting,

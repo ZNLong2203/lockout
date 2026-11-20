@@ -14,8 +14,8 @@ from pathlib import Path
 
 import duckdb
 
-from macrodna.detectors.tells import wilson_interval
-from macrodna.draft.pools import PickRec, RoleRunway, runway, stress
+from lockout.detectors.tells import wilson_interval
+from lockout.draft.pools import PickRec, RoleRunway, runway, stress
 
 
 def load_picks(cache_lol_dir: Path) -> list[PickRec]:
@@ -161,8 +161,8 @@ def calibrate_simulator(
     """Compare the simulator's mean stress with the real one, on series where both are defined."""
     import numpy as np
 
-    from macrodna.draft.pools import MIN_HISTORY, pool_weights
-    from macrodna.draft.simulate import SimPlayer, simulate
+    from lockout.draft.pools import MIN_HISTORY, pool_weights
+    from lockout.draft.simulate import SimPlayer, simulate
 
     by_player, _, by_series = _index(picks)
     by_game: dict[tuple[str, int], list[PickRec]] = defaultdict(list)

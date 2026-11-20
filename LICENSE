@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 MacroDNA contributors
+Copyright (c) 2026 Lockout contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,7 +21,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ---
-This license covers the source code of MacroDNA only. It does NOT cover the
+This license covers the source code of Lockout only. It does NOT cover the
 GRID / Cloud9 hackathon data, which is proprietary and licensed separately
 (see the data repository's LICENSE.md). The data is never part of this
 repository.

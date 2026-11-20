@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from macrodna.detectors.objectives import (
+from lockout.detectors.objectives import (
     LOOKBACK,
     ObjectiveKill,
     alive_mask,
@@ -14,8 +14,8 @@ from macrodna.detectors.objectives import (
     sustained_setup,
     team_counts,
 )
-from macrodna.geometry import DRAGON_PIT
-from macrodna.store import GameTrack
+from lockout.geometry import DRAGON_PIT
+from lockout.store import GameTrack
 
 BASE = (1000, 1000)
 

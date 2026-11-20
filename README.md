@@ -1,11 +1,11 @@
-# MacroDNA
+# Lockout
 
 **Fearless draft preparation for League of Legends, grounded in how teams actually play.**
 Entry for the *Cloud9 x JetBrains: Sky's The Limit Hackathon 2026*, Category 2 (LoL): Macro Scouting & Draft Management.
 
 In Fearless Draft every champion picked in a game is locked for the rest of the series, for **both** teams.
 A player's comfortable pool shrinks game after game, and by game 3 or 4 some role is playing off its pool.
-Coaches track this in spreadsheets. MacroDNA reads the official GRID feeds (745 series, 1,739 games) and answers:
+Coaches track this in spreadsheets. Lockout reads the official GRID feeds (745 series, 1,739 games) and answers:
 
 - **Which of their roles runs out of champions first, and what would a ban take away?** Pool state per player, ban targets, and a Monte Carlo forecast of the series.
 - **And ours?** The same view for our own lineup: which champions to save for game 3 or 4.
@@ -42,18 +42,18 @@ git clone https://github.com/cloud9esports/stl-hackathon-2026-grid-starter.git .
 
 # 2. Install, build the local cache, run the detectors and the draft analysis
 uv sync
-uv run macrodna doctor
-uv run macrodna etl
-uv run macrodna detect
-uv run macrodna draft-build
+uv run lockout doctor
+uv run lockout etl
+uv run lockout detect
+uv run lockout draft-build
 
 # 3. Serve the API and open the app on it
-uv run macrodna serve                     # http://127.0.0.1:8000/docs
+uv run lockout serve                     # http://127.0.0.1:8000/docs
 cd web && VITE_API=live npm run dev       # proxies /api to the server
 
 # Or stay in the terminal
-uv run macrodna plan "Cloud9" "100 Thieves" --locked "Ezreal,Rumble,Orianna"
-uv run macrodna tendencies "Cloud9"
+uv run lockout plan "Cloud9" "100 Thieves" --locked "Ezreal,Rumble,Orianna"
+uv run lockout tendencies "Cloud9"
 ```
 
 The data location is read from `STL_DATA_DIR` (default `../stl-hackathon-2026-grid-starter`). All derived data is

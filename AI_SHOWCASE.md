@@ -1,5 +1,7 @@
 # AI showcase
 
+The short case study for the Best AI-Powered Workflow Story bonus is [docs/ai-workflow-story.md](docs/ai-workflow-story.md).
+
 How AI tools shaped Lockout, written from what actually happened. The bonus prize looks at the JetBrains tools,
 so they come first; the other AI tools used in the project are disclosed after them.
 
@@ -41,9 +43,11 @@ so they come first; the other AI tools used in the project are disclosed after t
 
 ## Other AI tools (disclosure)
 
-- **Claude Code (terminal)** started the repository and wrote most of the analysis: ETL, role and map geometry,
-  jungle and objective detectors, tells, the Fearless pool model, its backtest and the first versions of the web app.
-  Commits made with it carry a `Co-Authored-By` trailer.
+- **Claude Code** started the repository and wrote most of the analysis: ETL, role and map geometry, jungle and
+  objective detectors, tells, the Fearless pool model, its backtest and the first versions of the web app. It also
+  built the later draft features: the step-by-step co-pilot and its evaluation, the Fearless budget, the
+  composition check, the real-series replay, team logos and the hosted demo. Commits made with it carry a
+  `Co-Authored-By` trailer.
 - **Claude** did the competition research and the design of the draft-first
   direction after the Category 2 judging criteria were re-read.
 

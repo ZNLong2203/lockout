@@ -10,9 +10,9 @@ so they come first; the other AI tools used in the project are disclosed after t
 
 | Tool | What it was used for | Evidence |
 |---|---|---|
-| **PyCharm, hosting Claude Code** | The Claude Code agent runs in a PyCharm tool window. In that session it wrote the read-only HTTP API (`src/lockout/api/{app,queries}.py`, `lockout serve`, `tests/test_api.py`) from the written brief `docs/tasks/junie-api.md`, then the scouting page, the 2D replay and the draft-tendency panel in `web/` | [`docs/img/pycharm-project.png`](docs/img/pycharm-project.png) and [`docs/img/pycharm-run-config.png`](docs/img/pycharm-run-config.png) (the IDE with the project and the shared run configuration loaded); **[owner]** add a screenshot of the task and of the diff review |
+| **JetBrains Air in PyCharm (Claude agent)** | An Air agent session in PyCharm, running the Claude agent (Opus 5.5). In that session it wrote the read-only HTTP API (`src/lockout/api/{app,queries}.py`, `lockout serve`, `tests/test_api.py`) from the written brief `docs/tasks/junie-api.md`, then the scouting page, the 2D replay and the draft-tendency panel in `web/` | [`docs/img/pycharm-project.png`](docs/img/pycharm-project.png) and [`docs/img/pycharm-run-config.png`](docs/img/pycharm-run-config.png) (the IDE with the project and the shared run configuration loaded); **[owner]** add a screenshot of the task and of the diff review |
 | **PyCharm** | The project IDE for the Python back end (`.idea/` is committed). Shared run configurations in `.run/` (tests, lint, each `lockout` command, the API, the web app, and one that starts API and web together) | `.run/*.run.xml` in the repo, written by the agent as files and run from the IDE by the owner; **[owner]** add a screenshot of a run and of a debugger session |
-| **Air / Junie / DataGrip / WebStorm** | **[owner]** only list what was actually used, or delete this row. Air in particular: the agent session in the screenshots is Claude Code inside PyCharm, so add Air only if you also did real work in it | |
+| **Junie / DataGrip / WebStorm** | **[owner]** only list what was actually used, or delete this row | |
 
 ### What the agent got right
 

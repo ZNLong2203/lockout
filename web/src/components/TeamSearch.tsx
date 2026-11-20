@@ -1,6 +1,7 @@
 import { Search } from "lucide-react";
 import { useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { TeamSummary } from "../api/types";
+import { isDarkLogo, useLogo } from "../lib/logos";
 
 export const leagueOf = (t: TeamSummary) => (t.events[t.events.length - 1] ?? "").split(" - ")[0] || "—";
 
@@ -15,8 +16,29 @@ const initials = (name: string) =>
 
 const hue = (id: string) => [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
 
-/** A monogram for a team: we do not use team logos (trademarks), so identity comes from initials and a stable hue. */
+/** A team's crest: its logo when Leaguepedia has one (loaded at runtime), else initials on a stable hue. */
 export function TeamBadge({ team, size = 36 }: { team: Pick<TeamSummary, "team_id" | "name">; size?: number }) {
+  const logo = useLogo(team.name);
+  const [broken, setBroken] = useState<string | null>(null);
+  const [dark, setDark] = useState(false);
+  if (logo && broken !== logo) {
+    const inner = Math.round(size * 0.78);
+    return (
+      <span className={`team-badge logo${dark ? " on-light" : ""}`} aria-hidden style={{ width: size, height: size }}>
+        <img
+          src={logo}
+          alt=""
+          width={inner}
+          height={inner}
+          crossOrigin="anonymous"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onLoad={(e) => setDark(isDarkLogo(e.currentTarget))}
+          onError={() => setBroken(logo)}
+        />
+      </span>
+    );
+  }
   const h = hue(team.team_id);
   return (
     <span

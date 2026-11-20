@@ -48,6 +48,7 @@ uv run lockout doctor
 uv run lockout etl
 uv run lockout detect
 uv run lockout draft-build
+uv run lockout logos                     # optional: team logo URLs from Leaguepedia (no images stored)
 
 # 3. Serve the API and open the app on it
 uv run lockout serve                     # http://127.0.0.1:8000/docs

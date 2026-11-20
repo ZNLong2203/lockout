@@ -7,6 +7,7 @@ Base path `/api`. Errors use standard HTTP codes with a JSON `{"detail": "..."}`
 | Method and path | Returns | Notes |
 |---|---|---|
 | `GET /api/health` | `{"status": "ok", "games": int}` | `games` is read from the cache |
+| `GET /api/logos` | `TeamLogos` | `{logos: {team name: url}, source}` from the `team_logos.json` URL cache written by `lockout logos` (Leaguepedia). Empty until that has run; no image is stored |
 | `GET /api/teams?q=&event=` | `TeamSummary[]` | `q` is a case-insensitive name filter, `event` an exact event name |
 | `GET /api/teams/{team_id}/profile?event=` | `TeamProfile` | `event` restricts every aggregate to one split/league |
 | `GET /api/teams/{team_id}/tells/{template_id}/evidence` | `EvidenceItem[]` | One item per occurrence, newest first |

@@ -115,11 +115,13 @@ export function DraftRoom({ teams, matchup, onMatchup }: Props) {
             <span className="eyebrow">Fearless draft room</span>
             <div className="scoreline" aria-label="Series score">
               <span className={`side-dot ${sideOf(game, "us")}`} aria-hidden />
+              <TeamBadge team={{ team_id: ctx.ours.name, name: ctx.ours.name }} size={28} />
               <b>{ctx.ours.name}</b>
               <span className="score-num">
                 {usWins} – {themWins}
               </span>
               <b>{ctx.opponent.name}</b>
+              <TeamBadge team={{ team_id: ctx.opponent.name, name: ctx.opponent.name }} size={28} />
               <span className={`side-dot ${sideOf(game, "them")}`} aria-hidden />
               <span className="muted">
                 Game {game.number} · Bo{ctx.format}

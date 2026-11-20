@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 from lockout.api import schemas as s
 from lockout.api.queries import NotFoundError, Repository
 from lockout.config import Settings, load_settings
+from lockout.logos import load_logos
 
 Name = Annotated[str, Query(min_length=1, description="A team id, or part of a team name")]
 
@@ -48,6 +49,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         event: Annotated[str | None, Query(description="Exact event name")] = None,
     ) -> list[s.TeamSummary]:
         return repo.teams(q, event)
+
+    @api.get(
+        "/logos",
+        response_model=s.TeamLogos,
+        summary="Team logo URLs from Leaguepedia (empty until `lockout logos` has run)",
+    )
+    def logos() -> s.TeamLogos:
+        return s.TeamLogos(logos=load_logos(repo.settings.cache_dir), source="Leaguepedia")
 
     @api.get(
         "/teams/{team_id}/profile",

@@ -32,6 +32,15 @@ class TeamSummary(BaseModel):
     )
 
 
+class TeamLogos(BaseModel):
+    """Logo image URLs keyed by team name. Images load from the source's CDN; nothing is stored."""
+
+    logos: dict[str, str] = Field(
+        description="Team name -> image URL; teams without a logo are absent"
+    )
+    source: str = Field(description="Where the logos come from, to credit in the UI")
+
+
 class Rate(BaseModel):
     """A proportion with its sample size. ``n`` must always be shown next to ``rate``."""
 

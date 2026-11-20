@@ -182,6 +182,26 @@ def tendencies(
 
 
 @app.command()
+def logos() -> None:
+    """Look up team logos on Leaguepedia and cache their URLs (no images are stored)."""
+    from lockout.api.queries import CacheNotReadyError, Repository
+    from lockout.logos import resolve_logos, save_logos
+
+    settings = load_settings()
+    try:
+        repo = Repository(settings)
+    except CacheNotReadyError as exc:
+        typer.secho(f"FAIL: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(1) from exc
+    names = sorted({n for n in repo.names.values() if n and not n.lower().startswith("tbd")})
+    found = resolve_logos(names)
+    path = save_logos(settings.cache_dir, found)
+    typer.secho(
+        f"OK: logos for {len(found)} of {len(names)} teams -> {path}", fg=typer.colors.GREEN
+    )
+
+
+@app.command()
 def serve(
     host: str = typer.Option("127.0.0.1", help="Interface to listen on."),
     port: int = typer.Option(8000, help="Port to listen on."),

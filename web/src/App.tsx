@@ -1,6 +1,6 @@
 import { PlayCircle, Radar, Search, Swords } from "lucide-react";
-import { useEffect, useState } from "react";
-import { fetchTeams, isLive } from "./api/client";
+import { useEffect, useMemo, useState } from "react";
+import { fetchLogos, fetchTeams, isLive } from "./api/client";
 import type { TeamSummary } from "./api/types";
 import { CommandPalette } from "./components/CommandPalette";
 import { DraftRoom } from "./components/DraftRoom";
@@ -9,6 +9,7 @@ import type { Matchup } from "./components/MatchupPicker";
 import { ReplayPage } from "./components/ReplayPage";
 import { TeamPage } from "./components/TeamPage";
 import { CatalogContext, useLoadedCatalog } from "./lib/ddragon";
+import { LogoContext, toLogoMap } from "./lib/logos";
 import { draftLink, teamLink, useRoute } from "./lib/route";
 
 // "Us" defaults to Cloud9 (the tool is built for its coaches), the opponent to the team with the most games.
@@ -30,6 +31,12 @@ export default function App() {
   const route = useRoute();
   const [teams, setTeams] = useState<TeamSummary[]>([]);
   const [matchup, setMatchup] = useState<Matchup>({ ours: "", opponent: "" });
+  const [logoUrls, setLogoUrls] = useState<Record<string, string>>({});
+  const logos = useMemo(() => toLogoMap(logoUrls), [logoUrls]);
+
+  useEffect(() => {
+    void fetchLogos().then(setLogoUrls);
+  }, []);
 
   useEffect(() => {
     fetchTeams()
@@ -59,6 +66,7 @@ export default function App() {
 
   return (
     <CatalogContext.Provider value={catalog}>
+    <LogoContext.Provider value={logos}>
       <nav className="topnav" aria-label="Pages">
         <div className="app topnav-inner">
           <a className="logo" href="#/">
@@ -96,8 +104,9 @@ export default function App() {
       <footer className="app legal">
         Lockout isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing
         or managing Riot Games properties. Riot Games, and all associated properties are trademarks or registered trademarks of Riot Games, Inc.
-        Champion portraits, splash art and the minimap behind the 3D terrain are loaded at runtime from Riot's Data Dragon. Match data provided by GRID; not endorsed by Cloud9.
+        Champion portraits, splash art and the minimap behind the 3D terrain are loaded at runtime from Riot's Data Dragon. Team logos are trademarks of their teams, loaded at runtime via Leaguepedia. Match data provided by GRID; not endorsed by Cloud9.
       </footer>
+    </LogoContext.Provider>
     </CatalogContext.Provider>
   );
 }

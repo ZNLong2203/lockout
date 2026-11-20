@@ -10,6 +10,7 @@ import type {
   Replay,
   SeriesPlanResponse,
   TeamDraftTendencies,
+  TeamLogos,
   TeamProfile,
   TeamSummary,
   TendencyScope,
@@ -58,6 +59,10 @@ export async function fetchContext(team = "", opponent = ""): Promise<SeriesCont
   const ctx = await getJson<Omit<SeriesContext, "games">>(`/api/series/context?${params}`);
   return { ...ctx, games: [] };
 }
+
+/** Team logo URLs by name; never fails (the UI falls back to monograms). Demo teams are fictional, so none. */
+export const fetchLogos = (): Promise<Record<string, string>> =>
+  isLive ? getJson<TeamLogos>("/api/logos").then((r) => r.logos).catch(() => ({})) : Promise.resolve({});
 
 export const fetchTeams = (): Promise<TeamSummary[]> => (isLive ? getJson<TeamSummary[]>("/api/teams") : demo(() => DEMO_TEAMS));
 

@@ -21,6 +21,12 @@ export interface TeamSummary {
   events: string[];
 }
 
+/** Logo image URLs keyed by team name; images load from the source's CDN at runtime. */
+export interface TeamLogos {
+  logos: Record<string, string>;
+  source: string;
+}
+
 /** A proportion with its sample size: always show `n` next to `rate`. */
 export interface Rate {
   n: number;

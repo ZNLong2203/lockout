@@ -42,3 +42,36 @@ export function along(path: [number, number][], f: number): [number, number] {
   }
   return path[0] as [number, number];
 }
+
+export type StructureKind = "turret" | "inhibitor" | "nexus_turret" | "nexus";
+export interface Structure {
+  x: number;
+  y: number;
+  side: "blue" | "red";
+  kind: StructureKind;
+}
+
+// Nexus turrets, measured like everything else (median attacker position when they fell).
+const NEXUS_TURRETS: [number, number, "blue" | "red"][] = [
+  [1947, 2254, "blue"], [2186, 1897, "blue"],
+  [12710, 12915, "red"], [12927, 12459, "red"],
+];
+
+/** Every structure on the Rift. Each lane path runs inhibitor -> turrets -> (corner) -> turrets -> inhibitor. */
+export function structures(): Structure[] {
+  const half = (SUM[0] + SUM[1]) / 2;
+  const out: Structure[] = [];
+  for (const path of Object.values(LANES)) {
+    path.forEach(([x, y], i) => {
+      const corner = x + y > 13000 && Math.abs(x - y) > 10000;
+      if (corner) return;
+      const side = x + y < half ? "blue" : "red";
+      const kind: StructureKind = i === 0 || i === path.length - 1 ? "inhibitor" : "turret";
+      out.push({ x, y, side, kind });
+    });
+  }
+  for (const [x, y, side] of NEXUS_TURRETS) out.push({ x, y, side, kind: "nexus_turret" });
+  out.push({ x: NEXUS.blue[0], y: NEXUS.blue[1], side: "blue", kind: "nexus" });
+  out.push({ x: NEXUS.red[0], y: NEXUS.red[1], side: "red", kind: "nexus" });
+  return out;
+}

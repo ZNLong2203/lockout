@@ -156,3 +156,6 @@ details.more[open] > summary svg { transform: rotate(180deg); }
 .picker .turn { font-family: var(--display); font-size: 1.1rem; letter-spacing: 0.03em; }
 .matchup-slot .team-search-list { left: auto; right: 0; min-width: 340px; }
 .series .game-tile { min-height: 0; }
+.map-camp { font: 600 380px var(--font); fill: #f2ead2; paint-order: stroke; stroke: rgba(8, 12, 18, 0.85); stroke-width: 90px; }
+.map-pit { font: 700 460px var(--font); fill: #e6d6ff; paint-order: stroke; stroke: rgba(8, 12, 18, 0.9); stroke-width: 100px; }
+.rift { border-radius: 16px; background: #0a0f18; }

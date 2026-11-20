@@ -95,7 +95,7 @@ export function ReplayPlayer({ replay, startAt = 0 }: Props) {
             <Rift3D catalog={catalog} replay={replay} t={t} trails={trails} className="replay-3d" />
           </Suspense>
         ) : (
-        <MapBase label={summary} className="rift replay-map">
+        <MapBase label={summary} className="rift replay-map" labels={false}>
             {trails &&
               replay.players.map((p) => {
                 const pts = trailOf(replay, p.slot, t, TRAIL_S);

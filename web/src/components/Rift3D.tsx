@@ -7,9 +7,9 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { Replay } from "../api/types";
 import { iconUrl, mapUrl, type Catalog } from "../lib/ddragon";
-import { CAMPS, LANES, NEXUS, PITS, mirror } from "../lib/map";
+import { CAMPS, LANES, PITS, mirror, structures } from "../lib/map";
 import { frameAt, trailOf } from "../lib/replay";
-import { toWorld, towers } from "../lib/rift3d";
+import { toWorld } from "../lib/rift3d";
 import { MAP_EXTENT, heightField, sample } from "../lib/terrain";
 
 const BLUE = "#3b8cff";
@@ -142,37 +142,101 @@ function Lanes({ glow }: { glow?: Record<string, number> }) {
   );
 }
 
-function Base({ at, color }: { at: readonly number[]; color: string }) {
-  const [x, , z] = toWorld(at[0] as number, at[1] as number);
-  const ring = useRef<THREE.Mesh>(null);
+const STONE = "#aeb8c6";
+
+/** Turret: stone base, tapered shaft, coloured crown and a glowing eye on top. */
+function Turret({ at, color, tall = false }: { at: [number, number, number]; color: string; tall?: boolean }) {
+  const h = tall ? 0.62 : 0.5;
+  return (
+    <group position={at}>
+      <mesh position={[0, 0.04, 0]} castShadow>
+        <cylinderGeometry args={[0.17, 0.2, 0.08, 6]} />
+        <meshStandardMaterial color={STONE} roughness={0.6} metalness={0.3} />
+      </mesh>
+      <mesh position={[0, 0.08 + h / 2, 0]} castShadow>
+        <cylinderGeometry args={[0.065, 0.11, h, 6]} />
+        <meshStandardMaterial color={STONE} roughness={0.5} metalness={0.4} />
+      </mesh>
+      <mesh position={[0, 0.12 + h, 0]} castShadow>
+        <coneGeometry args={[0.13, 0.16, 6]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.6} metalness={0.5} roughness={0.35} />
+      </mesh>
+      <mesh position={[0, 0.25 + h, 0]}>
+        <sphereGeometry args={[0.055, 16, 16]} />
+        <meshBasicMaterial color={color} toneMapped={false} />
+      </mesh>
+    </group>
+  );
+}
+
+/** Inhibitor: a crystal floating and turning above a round pedestal ringed in the team colour. */
+function Inhibitor({ at, color }: { at: [number, number, number]; color: string }) {
+  const crystal = useRef<THREE.Mesh>(null);
   useFrame(({ clock }) => {
-    if (ring.current) ring.current.scale.setScalar(1 + ((clock.elapsedTime * 0.5) % 1) * 0.8);
+    if (!crystal.current) return;
+    crystal.current.rotation.y = clock.elapsedTime * 0.9;
+    crystal.current.position.y = 0.36 + Math.sin(clock.elapsedTime * 2 + at[0]) * 0.03;
   });
   return (
-    <group position={[x, 0, z]}>
-      <mesh position={[0, 0.45, 0]}>
-        <cylinderGeometry args={[0.55, 0.85, 0.9, 6]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.2} toneMapped={false} />
+    <group position={at}>
+      <mesh position={[0, 0.04, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.27, 0.3, 0.08, 24]} />
+        <meshStandardMaterial color={STONE} roughness={0.55} metalness={0.3} />
+      </mesh>
+      <mesh position={[0, 0.09, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.22, 0.02, 8, 40]} />
+        <meshBasicMaterial color={color} toneMapped={false} />
+      </mesh>
+      <mesh ref={crystal} castShadow>
+        <octahedronGeometry args={[0.15, 0]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.4} transparent opacity={0.92} toneMapped={false} />
+      </mesh>
+    </group>
+  );
+}
+
+/** Nexus: the large crystal on a stepped platform, with a slow pulse ring. */
+function Nexus({ at, color }: { at: [number, number, number]; color: string }) {
+  const ring = useRef<THREE.Mesh>(null);
+  const crystal = useRef<THREE.Mesh>(null);
+  useFrame(({ clock }) => {
+    if (ring.current) ring.current.scale.setScalar(1 + ((clock.elapsedTime * 0.5) % 1) * 0.8);
+    if (crystal.current) crystal.current.rotation.y = clock.elapsedTime * 0.4;
+  });
+  return (
+    <group position={at}>
+      <mesh position={[0, 0.07, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.62, 0.72, 0.14, 8]} />
+        <meshStandardMaterial color={STONE} roughness={0.5} metalness={0.35} />
+      </mesh>
+      <mesh position={[0, 0.19, 0]} castShadow>
+        <cylinderGeometry args={[0.42, 0.5, 0.1, 8]} />
+        <meshStandardMaterial color="#8d98a8" roughness={0.5} metalness={0.4} />
+      </mesh>
+      <mesh ref={crystal} position={[0, 0.72, 0]} castShadow>
+        <octahedronGeometry args={[0.4, 0]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.3} transparent opacity={0.9} toneMapped={false} />
       </mesh>
       <mesh ref={ring} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
-        <ringGeometry args={[1.1, 1.2, 48]} />
-        <meshBasicMaterial color={color} transparent opacity={0.5} toneMapped={false} />
+        <ringGeometry args={[0.95, 1.03, 48]} />
+        <meshBasicMaterial color={color} transparent opacity={0.45} toneMapped={false} />
       </mesh>
       <pointLight color={color} intensity={6} distance={6} position={[0, 1.4, 0]} />
     </group>
   );
 }
 
-function Towers() {
-  const list = useMemo(() => towers(), []);
+function Structures() {
+  const list = useMemo(() => structures(), []);
   return (
     <>
-      {list.map((t, i) => (
-        <mesh key={i} position={[t.x, 0.28, t.z]}>
-          <cylinderGeometry args={[0.1, 0.16, 0.56, 6]} />
-          <meshStandardMaterial color={side(t.side)} emissive={side(t.side)} emissiveIntensity={1.4} toneMapped={false} />
-        </mesh>
-      ))}
+      {list.map((st, i) => {
+        const at = toWorld(st.x, st.y);
+        const color = side(st.side);
+        if (st.kind === "nexus") return <Nexus key={i} at={at} color={color} />;
+        if (st.kind === "inhibitor") return <Inhibitor key={i} at={at} color={color} />;
+        return <Turret key={i} at={at} color={color} tall={st.kind === "nexus_turret"} />;
+      })}
     </>
   );
 }
@@ -336,9 +400,7 @@ export default function Rift3D({ catalog, replay, t = 0, trails = true, ambient 
         <Terrain catalog={catalog} />
         <Water />
         <Lanes glow={laneGlow} />
-        <Towers />
-        <Base at={NEXUS.blue} color={BLUE} />
-        <Base at={NEXUS.red} color={RED} />
+        <Structures />
         <Pit at={PITS.dragon} label="dragon" />
         <Pit at={PITS.baron} label="baron" />
         <Camps glowSide={glowSide} startTop={startTop} labels={labels} />

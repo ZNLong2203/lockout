@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LANES, NEXUS, SUM, along, mirror } from "./map";
+import { LANES, NEXUS, SUM, along, mirror, structures } from "./map";
 
 describe("map geometry", () => {
   it("mirrors a blue-side point onto the red side and back", () => {
@@ -30,5 +30,19 @@ describe("map geometry", () => {
 
   it("interpolates inside a segment", () => {
     expect(along([[0, 0], [10, 0]], 0.25)).toEqual([2.5, 0]);
+  });
+});
+
+
+describe("structures", () => {
+  it("lists every structure a side and tells inhibitors from turrets", () => {
+    const all = structures();
+    for (const side of ["blue", "red"] as const) {
+      const mine = all.filter((s) => s.side === side);
+      expect(mine.filter((s) => s.kind === "inhibitor")).toHaveLength(3);
+      expect(mine.filter((s) => s.kind === "turret")).toHaveLength(9);
+      expect(mine.filter((s) => s.kind === "nexus_turret")).toHaveLength(2);
+      expect(mine.filter((s) => s.kind === "nexus")).toHaveLength(1);
+    }
   });
 });

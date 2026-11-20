@@ -19,7 +19,7 @@ const MIN_GAMES = 6;
 
 const routeWords = (route: string) => route.split(">").map((c) => c.replace(/_/g, " "));
 
-function Tells({ teamId, team, tells }: { teamId: string; team: string; tells: Tell[] }) {
+export function Tells({ teamId, team, tells }: { teamId: string; team: string; tells: Tell[] }) {
   const [open, setOpen] = useState<string | null>(null);
   const sorted = useMemo(() => [...tells].sort((a, b) => STRENGTH_RANK[a.strength] - STRENGTH_RANK[b.strength] || a.q - b.q), [tells]);
   const notable = sorted.filter((t) => t.strength !== "typical").length;
@@ -58,7 +58,7 @@ function Tells({ teamId, team, tells }: { teamId: string; team: string; tells: T
   );
 }
 
-function Jungle({ profile }: { profile: TeamProfile }) {
+export function Jungle({ profile }: { profile: TeamProfile }) {
   const j = profile.jungle;
   if (!j) return null;
   return (
@@ -117,7 +117,7 @@ function Jungle({ profile }: { profile: TeamProfile }) {
   );
 }
 
-function Objectives({ objectives }: { objectives: ObjectiveProfile[] }) {
+export function Objectives({ objectives }: { objectives: ObjectiveProfile[] }) {
   if (!objectives.length) return null;
   return (
     <section className="card" aria-label="Objective set-up">

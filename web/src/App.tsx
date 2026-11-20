@@ -1,20 +1,17 @@
+import { PlayCircle, Radar, Search, Swords } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fetchTeams, isLive } from "./api/client";
 import type { TeamSummary } from "./api/types";
+import { CommandPalette } from "./components/CommandPalette";
 import { DraftRoom } from "./components/DraftRoom";
+import { Home } from "./components/Home";
 import type { Matchup } from "./components/MatchupPicker";
 import { ReplayPage } from "./components/ReplayPage";
-import { Scouting } from "./components/Scouting";
+import { TeamPage } from "./components/TeamPage";
 import { CatalogContext, useLoadedCatalog } from "./lib/ddragon";
-import { scoutingLink, useRoute } from "./lib/route";
+import { draftLink, teamLink, useRoute } from "./lib/route";
 
-const PAGES = [
-  { page: "draft", label: "Draft room", href: "#/draft" },
-  { page: "scouting", label: "Scouting", href: scoutingLink() },
-  { page: "replay", label: "Replay", href: "#/replay" },
-] as const;
-
-// Teams with a full history first: the default matchup is "Cloud9 against whoever has played the most".
+// "Us" defaults to Cloud9 (the tool is built for its coaches), the opponent to the team with the most games.
 function defaultMatchup(teams: TeamSummary[]): Matchup | null {
   const byGames = [...teams].sort((a, b) => b.games - a.games);
   const ours = byGames.find((t) => /cloud9/i.test(t.name)) ?? byGames[0];
@@ -22,49 +19,78 @@ function defaultMatchup(teams: TeamSummary[]): Matchup | null {
   return ours && opponent ? { ours: ours.team_id, opponent: opponent.team_id } : null;
 }
 
+const NAV = [
+  { page: "draft", label: "Draft room", icon: Swords, href: draftLink() },
+  { page: "team", label: "Teams", icon: Radar, href: teamLink() },
+  { page: "replay", label: "Replay", icon: PlayCircle, href: "#/replay" },
+] as const;
+
 export default function App() {
   const catalog = useLoadedCatalog();
   const route = useRoute();
   const [teams, setTeams] = useState<TeamSummary[]>([]);
   const [matchup, setMatchup] = useState<Matchup>({ ours: "", opponent: "" });
-  const [scoutTeam, setScoutTeam] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTeams()
-      .then((all) => {
+      .then((raw) => {
+        // Bracket placeholders ("TBD-1") are not real teams.
+        const all = raw.filter((t) => !/^tbd\b/i.test(t.name.trim()));
         setTeams(all);
-        const m = defaultMatchup(all);
-        if (m && isLive) setMatchup(m);
+        const m = isLive ? defaultMatchup(all) : { ours: "alpha", opponent: "bravo" };
+        if (m) setMatchup((cur) => (cur.ours && cur.opponent ? cur : m));
       })
       .catch(() => setTeams([]));
   }, []);
 
-  // `#/scouting/<team>` wins; otherwise keep the last team looked at, or the opponent of the current matchup.
-  const team = route.page === "scouting" && route.team ? route.team : (scoutTeam ?? (isLive ? matchup.opponent || null : "bravo"));
+  // A draft link (#/draft?us=..&vs=..) sets the matchup; the room stays mounted so a draft in progress survives navigation.
   useEffect(() => {
-    if (route.page === "scouting" && route.team) setScoutTeam(route.team);
+    if (route.page === "draft" && (route.us || route.vs)) {
+      setMatchup((m) => ({ ours: route.us ?? m.ours, opponent: route.vs ?? m.opponent }));
+    }
   }, [route]);
 
-  const ready = !isLive || (matchup.ours !== "" && matchup.opponent !== "");
+  const onMatchup = (m: Matchup) => {
+    setMatchup(m);
+    window.history.replaceState(null, "", draftLink(m.ours, m.opponent));
+  };
+  const ours = matchup.ours || null;
+  const ready = matchup.ours !== "" && matchup.opponent !== "";
+
   return (
     <CatalogContext.Provider value={catalog}>
       <nav className="topnav" aria-label="Pages">
         <div className="app topnav-inner">
-          <span className="brand">Lockout</span>
+          <a className="logo" href="#/">
+            <span className="logo-mark" aria-hidden>
+              L
+            </span>
+            Lockout
+          </a>
           <ul>
-            {PAGES.map((p) => (
-              <li key={p.page}>
-                <a href={p.href} aria-current={route.page === p.page ? "page" : undefined}>
-                  {p.label}
+            {NAV.map(({ page, label, icon: Icon, href }) => (
+              <li key={page}>
+                <a href={href} aria-current={route.page === page ? "page" : undefined}>
+                  <Icon size={16} aria-hidden />
+                  {label}
                 </a>
               </li>
             ))}
           </ul>
+          <button type="button" className="search-trigger" onClick={() => window.dispatchEvent(new Event("lockout:search"))}>
+            <Search size={15} aria-hidden />
+            <span>Search teams</span>
+            <kbd>⌘K</kbd>
+          </button>
         </div>
       </nav>
+      <CommandPalette teams={teams} ours={ours} />
 
-      <div hidden={route.page !== "draft"}>{ready ? <DraftRoom teams={teams} matchup={matchup} onMatchup={setMatchup} /> : <main className="app"><p className="muted">Loading teams…</p></main>}</div>
-      {route.page === "scouting" && <Scouting teamId={team} onTeam={(id) => (window.location.hash = scoutingLink(id))} />}
+      {route.page === "home" && <Home teams={teams} ours={ours} />}
+      <div hidden={route.page !== "draft"}>
+        {ready ? <DraftRoom teams={teams} matchup={matchup} onMatchup={onMatchup} /> : <main className="app"><p className="muted">Loading teams…</p></main>}
+      </div>
+      {route.page === "team" && <TeamPage teamId={route.team} tab={route.tab} teams={teams} ours={ours} />}
       {route.page === "replay" && <ReplayPage gameId={route.game} startAt={route.t} />}
 
       <footer className="app legal">

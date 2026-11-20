@@ -1,3 +1,4 @@
+import { ArrowLeftRight, ChevronDown } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { fetchBacktest, fetchContext, isLive } from "../api/client";
 import type { DraftBacktest, TeamSummary } from "../api/types";
@@ -14,7 +15,8 @@ import {
 } from "../lib/draft";
 import { DraftBoard } from "./DraftBoard";
 import { Insights } from "./Insights";
-import { MatchupPicker, type Matchup } from "./MatchupPicker";
+import type { Matchup } from "./MatchupPicker";
+import { TeamBadge, TeamSearch } from "./TeamSearch";
 import { TrustPanel } from "./Panels";
 import { PlayerPools } from "./PlayerPools";
 import { RecentForm } from "./RecentForm";
@@ -22,11 +24,6 @@ import { RiftMap } from "./RiftMap";
 import { SeriesStrip } from "./SeriesStrip";
 import { Tendencies } from "./Tendencies";
 
-const STEPS = [
-  ["Series so far", "Champions picked in earlier games are locked for both teams."],
-  ["Draft this game", "Click champions in order. Every ban and pick updates the analysis."],
-  ["Read what it means", "Bans that bite, picks to protect, and their jungler on the map."],
-];
 
 interface Props {
   teams: TeamSummary[];
@@ -80,7 +77,7 @@ export function DraftRoom({ teams, matchup, onMatchup }: Props) {
     return { locked, used, bannedNow, them, us, jungleOptions };
   }, [ctx, games, index, game]);
 
-  const picker = isLive && teams.length > 0 ? <MatchupPicker teams={teams} value={matchup} onChange={onMatchup} /> : null;
+  const picker = isLive && teams.length > 0 ? <MatchupBar teams={teams} value={matchup} onChange={onMatchup} /> : null;
   if (error) return <main className="app">{picker}<p className="err card" role="alert">{error}</p></main>;
   if (!ctx || !game || !view) return <main className="app">{picker}<p className="muted">Loading series…</p></main>;
 
@@ -112,44 +109,29 @@ export function DraftRoom({ teams, matchup, onMatchup }: Props) {
 
   return (
     <>
-      <header className="hero">
-        <div className="app hero-inner">
+      <header className="draft-head">
+        <div className="app draft-head-inner">
           <div>
-            <div className="brand">Lockout</div>
-            <h1>Fearless draft room</h1>
-            <p className="hero-sub">Plan a whole series: who runs out of champions first, what to ban, what to save.</p>
-          </div>
-          <div className="matchup" aria-label="Matchup">
-            <div className="matchup-team">
+            <span className="eyebrow">Fearless draft room</span>
+            <div className="scoreline" aria-label="Series score">
               <span className={`side-dot ${sideOf(game, "us")}`} aria-hidden />
               <b>{ctx.ours.name}</b>
-            </div>
-            <div className="matchup-score">
-              {usWins} – {themWins}
-              <span>Game {game.number} · Bo{ctx.format}</span>
-            </div>
-            <div className="matchup-team">
+              <span className="score-num">
+                {usWins} – {themWins}
+              </span>
               <b>{ctx.opponent.name}</b>
               <span className={`side-dot ${sideOf(game, "them")}`} aria-hidden />
+              <span className="muted">
+                Game {game.number} · Bo{ctx.format}
+              </span>
             </div>
           </div>
+          {picker}
           {!isLive && <span className="badge demo">Demo: synthetic teams and numbers</span>}
         </div>
       </header>
 
       <main className="app">
-        {picker}
-        <ol className="how" aria-label="How to use">
-          {STEPS.map(([t, d], i) => (
-            <li key={t}>
-              <span className="how-n">{i + 1}</span>
-              <div>
-                <b>{t}</b>
-                <div className="muted">{d}</div>
-              </div>
-            </li>
-          ))}
-        </ol>
 
         <SeriesStrip
           ctx={ctx}
@@ -167,6 +149,11 @@ export function DraftRoom({ teams, matchup, onMatchup }: Props) {
           <RiftMap bridge={activeJungler ? ctx.jungle_bridges[activeJungler] : undefined} side={sideOf(game, "them")} jungleOptions={view.jungleOptions} onChoose={setJungler} />
         </div>
 
+        <details className="more">
+          <summary>
+            <span>More detail: comfort pools, their draft habits, recent games, how far to trust this</span>
+            <ChevronDown size={18} aria-hidden />
+          </summary>
         <div className="grid2">
           <PlayerPools title={`${ctx.opponent.name}: comfort picks left`} accent="var(--side-them)" states={view.them} locked={view.locked} bannedNow={view.bannedNow} usedNow={view.used} />
           <PlayerPools title={`${ctx.ours.name}: comfort picks left`} accent="var(--side-us)" states={view.us} locked={view.locked} bannedNow={view.bannedNow} usedNow={view.used} />
@@ -177,8 +164,49 @@ export function DraftRoom({ teams, matchup, onMatchup }: Props) {
         <RecentForm team={ctx.opponent.name} games={ctx.opponent_recent} />
 
         {backtest && <TrustPanel data={backtest} />}
+        </details>
 
       </main>
     </>
+  );
+}
+
+/** Our team and the opponent, chosen with the type-ahead search. */
+function MatchupBar({ teams, value, onChange }: { teams: TeamSummary[]; value: Matchup; onChange: (m: Matchup) => void }) {
+  const [editing, setEditing] = useState<"ours" | "opponent" | null>(null);
+  const slot = (key: "ours" | "opponent", label: string) => {
+    const t = teams.find((x) => x.team_id === value[key]);
+    return (
+      <div className="matchup-slot">
+        <span className="slot-label">{label}</span>
+        {editing === key ? (
+          <TeamSearch
+            teams={teams}
+            autoFocus
+            exclude={[key === "ours" ? value.opponent : value.ours]}
+            placeholder={`Search ${label.toLowerCase()}…`}
+            onSelect={(x) => {
+              onChange({ ...value, [key]: x.team_id });
+              setEditing(null);
+            }}
+          />
+        ) : (
+          <button type="button" className="slot-team" onClick={() => setEditing(key)}>
+            {t && <TeamBadge team={t} size={26} />}
+            <b>{t?.name ?? "Choose…"}</b>
+            <span className="muted">change</span>
+          </button>
+        )}
+      </div>
+    );
+  };
+  return (
+    <div className="matchup-bar" aria-label="Choose the matchup">
+      {slot("ours", "Us")}
+      <button type="button" className="swap" title="Swap teams" onClick={() => onChange({ ours: value.opponent, opponent: value.ours })}>
+        <ArrowLeftRight size={16} aria-hidden />
+      </button>
+      {slot("opponent", "Opponent")}
+    </div>
   );
 }

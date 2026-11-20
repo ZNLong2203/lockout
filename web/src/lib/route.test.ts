@@ -1,16 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { parseHash, replayLink, scoutingLink } from "./route";
+import { draftLink, parseHash, replayLink, scoutingLink, teamLink } from "./route";
 
 describe("hash routes", () => {
-  it("defaults to the draft room", () => {
-    expect(parseHash("")).toEqual({ page: "draft" });
-    expect(parseHash("#/nonsense")).toEqual({ page: "draft" });
-    expect(parseHash("#/draft")).toEqual({ page: "draft" });
+  it("defaults to the home page", () => {
+    expect(parseHash("")).toEqual({ page: "home" });
+    expect(parseHash("#/")).toEqual({ page: "home" });
+    expect(parseHash("#/nonsense")).toEqual({ page: "home" });
   });
 
-  it("reads the team of the scouting page", () => {
-    expect(parseHash("#/scouting")).toEqual({ page: "scouting", team: null });
-    expect(parseHash("#/scouting/47497")).toEqual({ page: "scouting", team: "47497" });
+  it("reads the team page and its tab, and keeps old scouting links working", () => {
+    expect(parseHash("#/team/47497")).toEqual({ page: "team", team: "47497", tab: "overview" });
+    expect(parseHash("#/team/47497?tab=map")).toEqual({ page: "team", team: "47497", tab: "map" });
+    expect(parseHash("#/team/47497?tab=bogus")).toEqual({ page: "team", team: "47497", tab: "overview" });
+    expect(parseHash("#/scouting/47497")).toEqual({ page: "team", team: "47497", tab: "overview" });
+    expect(parseHash("#/scouting")).toEqual({ page: "team", team: null, tab: "overview" });
+  });
+
+  it("reads the matchup of the draft room", () => {
+    expect(parseHash("#/draft")).toEqual({ page: "draft", us: null, vs: null });
+    expect(parseHash("#/draft?us=1&vs=2")).toEqual({ page: "draft", us: "1", vs: "2" });
   });
 
   it("reads the game and start time of the replay page", () => {
@@ -22,7 +30,10 @@ describe("hash routes", () => {
 
   it("round-trips the links the app builds, including ids that need escaping", () => {
     expect(parseHash(replayLink("a/b c", 61.4))).toEqual({ page: "replay", game: "a/b c", t: 61 });
-    expect(parseHash(scoutingLink("x y"))).toEqual({ page: "scouting", team: "x y" });
+    expect(parseHash(scoutingLink("x y"))).toEqual({ page: "team", team: "x y", tab: "overview" });
+    expect(parseHash(teamLink("x", "games"))).toEqual({ page: "team", team: "x", tab: "games" });
+    expect(parseHash(draftLink("a b", "c"))).toEqual({ page: "draft", us: "a b", vs: "c" });
+    expect(draftLink()).toBe("#/draft");
     expect(replayLink("g")).toBe("#/replay/g");
   });
 });

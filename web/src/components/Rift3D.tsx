@@ -22,7 +22,7 @@ function curve(points: readonly (readonly number[])[], lift = 0.02) {
 }
 
 const WALL_H = 0.62;
-const GRID = 320;
+const GRID = 448;
 const hashN = (x: number, y: number) => {
   const v = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
   return v - Math.floor(v);
@@ -45,7 +45,7 @@ function Terrain({ catalog }: { catalog: Catalog }) {
       const ctx = canvas.getContext("2d");
       if (!ctx || !alive) return;
       ctx.drawImage(img, 0, 0);
-      const { h } = heightField(ctx.getImageData(0, 0, size, size).data, size, 6);
+      const { h } = heightField(ctx.getImageData(0, 0, size, size).data, size, 2);
       const pos: number[] = [];
       const col: number[] = [];
       const c = new THREE.Color();
@@ -64,7 +64,8 @@ function Terrain({ catalog }: { catalog: Catalog }) {
           const raw = sample(h, size, u, v);
           const noise = hashN(i, j);
           // Walls: flat rocky tops and steep sides (smoothstep), with a little roughness on top only.
-          const wall = raw > 0 ? THREE.MathUtils.smoothstep(raw, 0.22, 0.62) : 0;
+          // Centred on 0.5 so the wall edge stays exactly on the minimap's outline (no bloating into the paths).
+          const wall = raw > 0 ? THREE.MathUtils.smoothstep(raw, 0.4, 0.6) : 0;
           const lift = raw > 0 ? wall * (0.94 + noise * 0.08) : raw * 0.55;
           const [x, , z] = toWorld(gx, gy);
           pos.push(x, lift * WALL_H, z);

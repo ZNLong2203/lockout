@@ -120,6 +120,41 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return repo.series_context(team, opponent)
 
     @api.get(
+        "/champions",
+        response_model=list[s.ChampionStats],
+        summary="League pick/ban/win rates and roles per champion over 90 days",
+    )
+    def champions(
+        before: Annotated[
+            str | None, Query(description="ISO time; the window ends here (default: newest game)")
+        ] = None,
+    ) -> list[s.ChampionStats]:
+        return repo.champions(before)
+
+    @api.get(
+        "/series",
+        response_model=list[s.SeriesSummary],
+        summary="Finished real series, newest first; filter by a team and/or its opponent",
+    )
+    def series_list(
+        team: Annotated[str | None, Query(description="A team id or part of a name")] = None,
+        opponent: Annotated[str | None, Query(description="A team id or part of a name")] = None,
+        limit: Annotated[int, Query(ge=1, le=200)] = 30,
+    ) -> list[s.SeriesSummary]:
+        return repo.series_list(team, opponent, limit)
+
+    @api.get(
+        "/series/{series_id}/draft",
+        response_model=s.SeriesDraft,
+        summary="Every draft of a real series plus the draft-room context as it was before game 1",
+    )
+    def series_draft(
+        series_id: str,
+        ours: Annotated[str | None, Query(description="Team to treat as 'us'")] = None,
+    ) -> s.SeriesDraft:
+        return repo.series_draft(series_id, ours)
+
+    @api.get(
         "/draft/backtest",
         response_model=s.DraftBacktest,
         summary="How far the pool-stress idea can be trusted (read from the cache)",

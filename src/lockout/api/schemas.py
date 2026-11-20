@@ -385,3 +385,62 @@ class TeamDraftTendencies(BaseModel):
     ban_targets: list[BanTarget]
     fearless_shift: list[FearlessShiftPoint]
     notes: list[str]
+
+
+# --- League meta and real series (draft replay) ----------------------------------------------------------
+
+
+class ChampionStats(BaseModel):
+    """How a champion is drafted across the league in the recent window. Rates come with their ``n``."""
+
+    champion: str
+    games: int = Field(
+        description="Games in the window (the denominator of presence, pick and ban rate)"
+    )
+    picks: int
+    bans: int
+    presence: float = Field(description="Share of games where it was picked or banned")
+    wins: int
+    win_rate: float | None = Field(description="wins / picks; null below 5 picks")
+    roles: dict[str, float] = Field(description="role -> share of this champion's picks")
+    role: str = Field(description="Most common role, or 'unknown'")
+
+
+class SeriesTeam(BaseModel):
+    team_id: str
+    name: str
+    wins: int
+
+
+class SeriesSummary(BaseModel):
+    series_id: str
+    date: str
+    event: str
+    format: int = Field(description="Best-of N, inferred from the winning score")
+    teams: list[SeriesTeam] = Field(
+        description="Two teams; the first is the one asked about, if any"
+    )
+    games: int
+
+
+class ReplayGameDraft(BaseModel):
+    game_id: str
+    game_number: int
+    blue_team_id: str
+    red_team_id: str
+    winner_team_id: str | None
+    steps: list[str | None] = Field(
+        description="20 champions in tournament order (6 bans, 6 picks, 4 bans, 4 picks); null = no ban"
+    )
+
+
+class SeriesDraft(BaseModel):
+    """A finished real series, for replaying its drafts step by step in the draft room."""
+
+    series: SeriesSummary
+    context: SeriesContext = Field(
+        description="Pools and lineups as they were the day before the series (no look-ahead)"
+    )
+    games: list[ReplayGameDraft]
+    meta: list[ChampionStats] = Field(description="League meta of the 90 days before game 1")
+    notes: list[str]

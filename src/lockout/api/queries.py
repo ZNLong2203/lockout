@@ -28,7 +28,7 @@ from lockout.api import schemas as s
 from lockout.config import Settings
 from lockout.detectors.tells import wilson_interval
 from lockout.draft.planner import PickIndex, SeriesPlan, TeamState, jungle_bridge, plan_series
-from lockout.draft.pools import pool_weights
+from lockout.draft.pools import PickRec, pool_weights
 from lockout.draft.tendencies import (
     MIN_TEAM_GAMES,
     DraftRow,
@@ -59,6 +59,24 @@ POOL_SHOWN = 8  # champions per player in the draft room context
 REMAINING_SHOWN = 15  # champions per role in a plan
 BRIDGE_CHAMPIONS = 5  # remaining jungle champions that get a macro bridge in a plan
 RECENT_GAMES = 5
+# League meta window, counted back from the newest game (or from `before`). Recency beats sample size here:
+# stretching the window to 100 or 300 games lowered the co-pilot's held-out call rate (docs/methodology.md).
+META_DAYS = 90
+MIN_WIN_RATE_PICKS = 5
+# tournament draft order, as (side, action); mirrors web/src/lib/draft.ts ORDER
+DRAFT_ORDER = (
+    [("blue", "ban"), ("red", "ban")] * 3
+    + [
+        ("blue", "pick"),
+        ("red", "pick"),
+        ("red", "pick"),
+        ("blue", "pick"),
+        ("blue", "pick"),
+        ("red", "pick"),
+    ]
+    + [("red", "ban"), ("blue", "ban")] * 2
+    + [("red", "pick"), ("blue", "pick"), ("blue", "pick"), ("red", "pick")]
+)
 REPLAY_EVENT_KINDS = ("kill", "objective", "structure", "spawn", "respawn")
 OBJECTIVES = ("dragon", "baron", "herald", "grubs")
 MIN_PREPOSITIONED = 3  # players in place at spawn that count as "pre-positioned"
@@ -599,11 +617,13 @@ class Repository:
             notes=plan.notes,
         )
 
-    def _context_team(self, team_id: str) -> s.ContextTeam:
-        lineup = self.index.current_lineup(team_id)
+    def _context_team(
+        self, team_id: str, as_of: datetime | None = None, lineup: list[PickRec] | None = None
+    ) -> s.ContextTeam:
+        lineup = lineup if lineup is not None else self.index.current_lineup(team_id)
         if not lineup:
             raise NotFoundError(f"{self._name(team_id)} has no draft history.")
-        as_of = self._as_of()
+        as_of = as_of or self._as_of()
         players = []
         for pick in lineup:
             history = [h for h in self.index.by_player[pick.player_id] if h.t < as_of]
@@ -625,14 +645,15 @@ class Repository:
         name = self._name(team_id)
         return s.ContextTeam(team_id=team_id, name=name, short=_short(name), players=players)
 
-    def _recent_games(self, team_id: str) -> list[s.RecentGame]:
+    def _recent_games(self, team_id: str, before: str | None = None) -> list[s.RecentGame]:
         games = self._rows(
             f"""select d.game_id, any_value(d.started_at), any_value(d.side), any_value(d.won),
                        g.duration_s, g.blue_team_id, g.red_team_id
                 from {self._table("draft_enriched")} d join {self._table("games")} g using (game_id)
-                where d.team_id = ? group by d.game_id, g.duration_s, g.blue_team_id, g.red_team_id
+                where d.team_id = ? and (? is null or d.started_at < ?)
+                group by d.game_id, g.duration_s, g.blue_team_id, g.red_team_id
                 order by 2 desc, 1 desc limit {RECENT_GAMES}""",
-            [team_id],
+            [team_id, before, before],
         )
         out = []
         for game_id, started, side, won, duration, blue, red in games:
@@ -661,7 +682,19 @@ class Repository:
 
     def series_context(self, team: str, opponent: str) -> s.SeriesContext:
         (ours_id, _), (theirs_id, _) = self.resolve(team), self.resolve(opponent)
-        ours, theirs = self._context_team(ours_id), self._context_team(theirs_id)
+        return self._build_context(ours_id, theirs_id)
+
+    def _build_context(
+        self,
+        ours_id: str,
+        theirs_id: str,
+        as_of: datetime | None = None,
+        lineups: dict[str, list[PickRec]] | None = None,
+        before: str | None = None,
+    ) -> s.SeriesContext:
+        lineups = lineups or {}
+        ours = self._context_team(ours_id, as_of, lineups.get(ours_id))
+        theirs = self._context_team(theirs_id, as_of, lineups.get(theirs_id))
         jungler = next((p for p in theirs.players if p.role == "jungle"), None)
         bridges = {}
         for entry in jungler.pool if jungler else []:
@@ -674,9 +707,171 @@ class Repository:
         return s.SeriesContext(
             ours=ours,
             opponent=theirs,
-            opponent_recent=self._recent_games(theirs_id),
+            opponent_recent=self._recent_games(theirs_id, before),
             jungle_bridges=bridges,
             league_top3_share_by_game=league,
+        )
+
+    # -- league meta and real series --------------------------------------------------------------------------
+
+    def champions(self, before: str | None = None) -> list[s.ChampionStats]:
+        """League meta over the ``META_DAYS`` before ``before`` (an ISO time), or before the newest game."""
+        return self._memoised(f"champions:{before}", lambda: self._champions(before))
+
+    def _champions(self, before: str | None) -> list[s.ChampionStats]:
+        t = self._table("draft_enriched")
+        if before is None:
+            ((last,),) = self._rows(f"select max(started_at) from {t}")
+            if last is None:
+                return []
+            end = _parse_ts(last) + timedelta(seconds=1)
+        else:
+            end = _parse_ts(before)
+        stop = end.isoformat().replace("+00:00", "Z")
+        cutoff = (end - timedelta(days=META_DAYS)).isoformat().replace("+00:00", "Z")
+        window = "started_at >= ? and started_at < ?"
+        ((games,),) = self._rows(
+            f"select count(distinct game_id) from {t} where {window}", [cutoff, stop]
+        )
+        rows = self._rows(
+            f"""select champion,
+                       count(distinct game_id) filter (where action = 'pick'),
+                       count(distinct game_id) filter (where action = 'ban'),
+                       count(distinct game_id) filter (where action = 'pick' and won),
+                       count(distinct game_id)
+                from {t} where {window} and champion is not null and champion <> ''
+                group by 1""",
+            [cutoff, stop],
+        )
+        roles: dict[str, Counter[str]] = {}
+        for champ, role, n in self._rows(
+            f"""select champion, role, count(*) from {t}
+                where {window} and action = 'pick' and role in {ROLE_ORDER} group by 1, 2""",
+            [cutoff, stop],
+        ):
+            roles.setdefault(champ, Counter())[role] = n
+        out = []
+        for champ, picks, bans, wins, seen in rows:
+            rc = roles.get(champ, Counter())
+            total = sum(rc.values())
+            out.append(
+                s.ChampionStats(
+                    champion=champ,
+                    games=games,
+                    picks=picks,
+                    bans=bans,
+                    presence=seen / games if games else 0.0,
+                    wins=wins,
+                    win_rate=wins / picks if picks >= MIN_WIN_RATE_PICKS else None,
+                    roles={r: n / total for r, n in rc.most_common()} if total else {},
+                    role=rc.most_common(1)[0][0] if total else "unknown",
+                )
+            )
+        return sorted(out, key=lambda c: (-c.presence, c.champion))
+
+    def _series_rows(self) -> dict[str, s.SeriesSummary]:
+        def build() -> dict[str, s.SeriesSummary]:
+            rows = self._rows(
+                f"""select series_id, min(started_at), any_value(event), count(distinct game_id), team_id,
+                           count(distinct case when won then game_id end)
+                    from {self._table("draft_enriched")} group by series_id, team_id"""
+            )
+            by_series: dict[str, list[tuple[Any, ...]]] = {}
+            for r in rows:
+                by_series.setdefault(r[0], []).append(r)
+            out = {}
+            for sid, teams in by_series.items():
+                if len(teams) != 2:
+                    continue
+                wins = max(t[5] for t in teams)
+                out[sid] = s.SeriesSummary(
+                    series_id=sid,
+                    date=_day(min(t[1] for t in teams)),
+                    event=teams[0][2] or "",
+                    format=max(2 * wins - 1, max(t[3] for t in teams)),
+                    teams=[
+                        s.SeriesTeam(team_id=t[4], name=self._name(t[4]), wins=t[5]) for t in teams
+                    ],
+                    games=max(t[3] for t in teams),
+                )
+            return out
+
+        return self._memoised("series_rows", build)
+
+    def series_list(
+        self, team: str | None = None, opponent: str | None = None, limit: int = 30
+    ) -> list[s.SeriesSummary]:
+        team_id = self.resolve(team)[0] if team else None
+        opp_id = self.resolve(opponent)[0] if opponent else None
+        found = []
+        for summary in self._series_rows().values():
+            ids = [t.team_id for t in summary.teams]
+            if (team_id and team_id not in ids) or (opp_id and opp_id not in ids):
+                continue
+            if team_id and ids[0] != team_id:
+                summary = summary.model_copy(update={"teams": summary.teams[::-1]})
+            found.append(summary)
+        found.sort(key=lambda x: (x.date, x.series_id), reverse=True)
+        return found[:limit]
+
+    def series_draft(self, series_id: str, ours: str | None = None) -> s.SeriesDraft:
+        summary = self._series_rows().get(series_id)
+        if summary is None:
+            raise NotFoundError(f"No two-team series with id '{series_id}'.")
+        ids = [t.team_id for t in summary.teams]
+        if ours:
+            ours_id = ours if ours in ids else self.resolve(ours)[0]
+            if ours_id not in ids:
+                raise NotFoundError(f"{self._name(ours_id)} did not play series '{series_id}'.")
+            if ids[0] != ours_id:
+                summary = summary.model_copy(update={"teams": summary.teams[::-1]})
+        ours_id, theirs_id = (t.team_id for t in summary.teams)
+        rows = self._rows(
+            f"""select d.game_id, d.game_number, d.started_at, d.team_id, d.side, d.action, d.champion,
+                       g.blue_team_id, g.red_team_id, g.winner_team_id
+                from {self._table("draft_enriched")} d join {self._table("games")} g using (game_id)
+                where d.series_id = ? order by d.game_number, d.game_id, d.seq""",
+            [series_id],
+        )
+        games: dict[str, dict[str, Any]] = {}
+        for gid, number, started, _team, side, action, champ, blue, red, winner in rows:
+            g = games.setdefault(
+                gid,
+                {"n": int(number), "t": started, "blue": blue, "red": red, "w": winner, "a": []},
+            )
+            g["a"].append((side, action, champ))
+        ordered = sorted(games.items(), key=lambda kv: (kv[1]["n"], kv[1]["t"] or ""))
+        first_id, first = ordered[0]
+        start = first["t"]
+        as_of = _parse_ts(start)
+        lineups = {
+            tid: sorted(
+                (p for p in self.index.by_team.get(tid, []) if p.game_id == first_id),
+                key=lambda p: ROLE_ORDER.index(p.role) if p.role in ROLE_ORDER else 9,
+            )
+            for tid in (ours_id, theirs_id)
+        }
+        context = self._build_context(ours_id, theirs_id, as_of, lineups, before=start)
+        return s.SeriesDraft(
+            series=summary,
+            context=context.model_copy(update={"format": summary.format}),
+            meta=self.champions(before=start),
+            games=[
+                s.ReplayGameDraft(
+                    game_id=gid,
+                    game_number=g["n"],
+                    blue_team_id=g["blue"],
+                    red_team_id=g["red"],
+                    winner_team_id=g["w"],
+                    steps=order_steps(g["a"]),
+                )
+                for gid, g in ordered
+            ],
+            notes=[
+                "Pools, lineups and the opponent's recent games are taken from before game 1 of this "
+                "series, so nothing the series itself revealed leaks into the suggestions.",
+                "Jungle macro figures use every game in the cache, including this series.",
+            ],
         )
 
     def backtest(self) -> s.DraftBacktest:
@@ -711,3 +906,27 @@ class Repository:
             fearless_shift=[s.FearlessShiftPoint(**asdict(p)) for p in report.fearless_shift],
             notes=report.notes,
         )
+
+
+def _parse_ts(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def order_steps(actions: list[tuple[str, str, str | None]]) -> list[str | None]:
+    """Place (side, action, champion) rows, already sorted by ``seq``, on the 20 tournament draft slots.
+
+    Each side's n-th ban/pick goes to that side's n-th ban/pick slot, so a feed that numbers a missed ban
+    differently still lands every champion on the right side and phase.
+    """
+    slots: dict[tuple[str, str], list[int]] = {}
+    for i, key in enumerate(DRAFT_ORDER):
+        slots.setdefault(key, []).append(i)
+    steps: list[str | None] = [None] * len(DRAFT_ORDER)
+    used: dict[tuple[str, str], int] = {}
+    for side, action, champion in actions:
+        key = (side, action)
+        n = used.get(key, 0)
+        if key in slots and n < len(slots[key]):
+            steps[slots[key][n]] = champion or None
+        used[key] = n + 1
+    return steps

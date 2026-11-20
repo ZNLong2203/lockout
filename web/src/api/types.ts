@@ -340,3 +340,51 @@ export interface TeamDraftTendencies {
   fearless_shift: FearlessShiftPoint[];
   notes: string[];
 }
+
+// --- League meta and real series (draft replay) ----------------------------------------------------------
+
+/** How a champion is drafted across the league (last 180 days of the cache). Show `games`/`picks` as n. */
+export interface ChampionStats {
+  champion: string;
+  games: number;
+  picks: number;
+  bans: number;
+  presence: number;
+  wins: number;
+  win_rate: number | null;
+  roles: Record<string, number>;
+  role: string;
+}
+
+export interface SeriesTeam {
+  team_id: string;
+  name: string;
+  wins: number;
+}
+
+export interface SeriesSummary {
+  series_id: string;
+  date: string;
+  event: string;
+  format: number;
+  teams: SeriesTeam[];
+  games: number;
+}
+
+export interface ReplayGameDraft {
+  game_id: string;
+  game_number: number;
+  blue_team_id: string;
+  red_team_id: string;
+  winner_team_id: string | null;
+  steps: (string | null)[];
+}
+
+/** A finished real series: its drafts plus the draft-room context as it was before game 1. */
+export interface SeriesDraft {
+  series: SeriesSummary;
+  context: SeriesContext;
+  games: ReplayGameDraft[];
+  meta: ChampionStats[];
+  notes: string[];
+}

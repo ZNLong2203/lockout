@@ -105,7 +105,7 @@ button { border-radius: 10px; }
 /* team page */
 .pick-team { display: grid; gap: 14px; padding: 60px 0; text-align: center; }
 .pick-team h1 { font-size: 2.6rem; text-transform: uppercase; }
-.team-hero { position: relative; background: #0a1220 center 25% / cover no-repeat; border-bottom: 1px solid var(--ring); }
+.team-hero { position: relative; background: #0a1220 center 25% / cover no-repeat; border-bottom: 1px solid rgba(150, 190, 255, 0.06); }
 .team-hero-shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(7, 11, 20, 0.97) 25%, rgba(7, 11, 20, 0.6) 65%, rgba(7, 11, 20, 0.85)), linear-gradient(0deg, var(--page), transparent 45%); }
 .team-hero-inner { position: relative; display: flex; align-items: center; gap: 22px; padding-top: 48px; padding-bottom: 28px; flex-wrap: wrap; }
 .team-hero-text h1 { font-size: clamp(2.2rem, 5vw, 3.6rem); line-height: 1; text-transform: uppercase; margin: 4px 0 8px; }

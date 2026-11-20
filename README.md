@@ -16,9 +16,11 @@ Coaches track this in spreadsheets. Lockout reads the official GRID feeds (745 s
 Every number carries its sample size, and the backtest is reported as it came out, including what it does *not* show.
 See [docs/methodology.md](docs/methodology.md).
 
-| Draft room | Scouting and evidence | 2D replay |
+[![Lockout home: search the team you play next, over a 3D Summoner's Rift](docs/img/home.jpg)](docs/img/home.jpg)
+
+| Fearless draft room | Team page | 3D replay |
 |---|---|---|
-| [![Draft room](docs/img/draft-room.jpg)](docs/img/draft-room.jpg) | [![Scouting](docs/img/scouting.jpg)](docs/img/scouting.jpg) | [![Replay](docs/img/replay.jpg)](docs/img/replay.jpg) |
+| [![Draft room](docs/img/draft-room.jpg)](docs/img/draft-room.jpg) | [![Team page](docs/img/team.jpg)](docs/img/team.jpg) | [![Replay](docs/img/replay.jpg)](docs/img/replay.jpg) |
 
 *Screenshots show the built-in synthetic demo data: invented teams and numbers, nothing from the licensed data. The API's own documentation page is in [docs/img/api-docs.jpg](docs/img/api-docs.jpg).*
 

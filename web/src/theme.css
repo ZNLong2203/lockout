@@ -251,3 +251,5 @@ details.more[open] > summary svg { transform: rotate(180deg); }
 .seg { display: inline-flex; padding: 3px; border-radius: 10px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--axis); }
 .seg button { padding: 5px 9px; background: transparent; border: 0; color: var(--muted); font-size: 0.8rem; font-weight: 600; cursor: pointer; border-radius: 7px; }
 .seg button.on { background: rgba(56, 189, 248, 0.18); color: var(--ink); }
+
+.demo-note { margin: 0 0 8px; padding: 6px 10px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--warning) 50%, transparent); color: var(--ink-2); }

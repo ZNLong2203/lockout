@@ -102,6 +102,11 @@ export default function App() {
       {route.page === "replay" && <ReplayPage gameId={route.game} startAt={route.t} teams={teams} ours={ours} />}
 
       <footer className="app legal">
+        {!isLive && (
+          <p className="demo-note">
+            You are viewing the demo: teams, players and numbers are synthetic. The licensed GRID data runs only locally (see the README).
+          </p>
+        )}
         Lockout isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing
         or managing Riot Games properties. Riot Games, and all associated properties are trademarks or registered trademarks of Riot Games, Inc.
         Champion portraits, splash art and the minimap behind the 3D terrain are loaded at runtime from Riot's Data Dragon. Team logos are trademarks of their teams, loaded at runtime via Leaguepedia. Match data provided by GRID; not endorsed by Cloud9.

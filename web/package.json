@@ -9,7 +9,8 @@
     "typecheck": "tsc -b --noEmit",
     "preview": "vite preview",
     "test": "vitest run",
-    "eval:copilot": "vite-node scripts/callrate.ts"
+    "eval:copilot": "vite-node scripts/callrate.ts",
+    "build:pages": "tsc -b && vite build --mode pages"
   },
   "dependencies": {
     "@fontsource-variable/inter": "5.1.0",

@@ -3,6 +3,8 @@
 **Fearless draft preparation for League of Legends, grounded in how teams actually play.**
 Entry for the *Cloud9 x JetBrains: Sky's The Limit Hackathon 2026*, Category 2 (LoL): Macro Scouting & Draft Management.
 
+**[Open the live demo](https://znlong2203.github.io/lockout/)** (synthetic demo data, nothing to install) · [![CI](https://github.com/ZNLong2203/lockout/actions/workflows/ci.yml/badge.svg)](https://github.com/ZNLong2203/lockout/actions/workflows/ci.yml)
+
 In Fearless Draft every champion picked in a game is locked for the rest of the series, for **both** teams.
 A player's comfortable pool shrinks game after game, and by game 3 or 4 some role is playing off its pool.
 Coaches track this in spreadsheets. Lockout reads the official GRID feeds (745 series, 1,739 games) and answers:
@@ -34,7 +36,7 @@ See [docs/methodology.md](docs/methodology.md).
 
 Requires Python 3.12+ with [uv](https://docs.astral.sh/uv/) and Node 20+.
 
-**Just look around (no data needed).** The web app ships with synthetic demo data:
+**Just look around (no data needed).** Open the [live demo](https://znlong2203.github.io/lockout/), or run the web app with its synthetic demo data:
 
 ```bash
 cd web && npm install && npm run dev      # http://localhost:5173

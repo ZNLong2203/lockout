@@ -92,6 +92,19 @@ What the backtest says (no look-ahead; reproduce with `macrodna draft-build`):
 
 We present pool stress as a planning aid for choosing what to ban and what to save, not as a win-rate predictor.
 
+## 6. Replay and evidence
+
+Every tell keeps each occurrence (game, trigger time, whether the team did what the tell says). The API serves those
+occurrences newest first, and the web app opens the 2D replay ten seconds before the trigger. The replay draws the
+positions of all ten players once per second on our own map; a position that was never sampled is shown as unknown
+(`-1, -1` in the API), never invented, and the key events listed next to the map are only kills, objectives and
+structures from the feed. Unknown players are simply not drawn at that second.
+
+Two choices keep the profile page honest: jungle routes are grouped by their **first three camps** (complete routes
+are almost all unique, so they would give every route a sample size of one), and the **event filter** restricts the
+games count, the jungle profile and the objective figures but not the tells, which are tested once over all games
+(re-running the tests per event would change the multiple-comparison correction). A note on the page says so.
+
 ## Limitations
 
 - Positions arrive every 1-10 s per player, so timings are good to about 5 s, not to the second.

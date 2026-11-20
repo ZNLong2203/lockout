@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Full stack (API + web live)" type="CompoundRunConfigurationType">
+    <toRun type="PythonConfigurationType" name="macrodna serve" />
+    <toRun type="js.build_tools.npm" name="web dev (live)" />
+    <method v="2" />
+  </configuration>
+</component>

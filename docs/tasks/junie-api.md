@@ -1,4 +1,10 @@
-# Task for Junie: implement the read-only API
+# Task for Junie / Air / an IDE agent: implement the read-only API
+
+> **Status: done** (2026-11-20). Implemented with Claude Code running inside PyCharm from this brief:
+> `src/macrodna/api/{app,queries}.py`, `macrodna serve`, `tests/test_api.py` (28 tests on a synthetic cache).
+> Deviations from the brief, and why: tests call the app through a small stdlib ASGI client
+> (`tests/asgi_client.py`) instead of `TestClient`, because Starlette 1.10's `TestClient` needs the extra package
+> `httpx2` and the brief says to add no dependencies; the contract gained `/api/teams/{id}/draft-tendencies`.
 
 Paste this into Junie (in PyCharm) as the task.
 

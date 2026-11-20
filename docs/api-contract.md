@@ -11,6 +11,9 @@ Base path `/api`. Errors use standard HTTP codes with a JSON `{"detail": "..."}`
 | `GET /api/teams/{team_id}/profile?event=` | `TeamProfile` | `event` restricts every aggregate to one split/league |
 | `GET /api/teams/{team_id}/tells/{template_id}/evidence` | `EvidenceItem[]` | One item per occurrence, newest first |
 | `GET /api/games/{game_id}/replay` | `Replay` | One position per second per player |
+| `GET /api/draft/plan?team=&opponent=&locked=&banned=` | `SeriesPlanResponse` | `locked` and `banned` are comma-separated champion names; the logic is `macrodna.draft.planner.plan_series` |
+| `GET /api/draft/backtest` | `DraftBacktest` | Read `draft_backtest.json` from the cache; do not recompute |
+| `GET /api/draft/bridge?champion=&team=` | `JungleBridge` | `scope` is `team` when that team has the champion, else `league`; 404 if never played |
 
 ## Rules the implementation must follow
 
@@ -24,6 +27,6 @@ Base path `/api`. Errors use standard HTTP codes with a JSON `{"detail": "..."}`
 
 ## Cache tables (Parquet, under `private/cache/lol/`)
 
-`games`, `players`, `roles`, `events`, `draft`, `jungle`, `objectives`, `tells`, `tell_evidence`, and
-`tracks/*.parquet`. Column lists are in `src/macrodna/etl/build.py`, `detectors/jungle.py`,
+`games`, `players`, `roles`, `events`, `draft`, `draft_enriched`, `jungle`, `objectives`, `tells`,
+`tell_evidence`, `tracks/*.parquet`, and `draft_backtest.json`. Column lists are in `src/macrodna/etl/build.py`, `detectors/jungle.py`,
 `detectors/objectives.py` and `detectors/tells.py`.

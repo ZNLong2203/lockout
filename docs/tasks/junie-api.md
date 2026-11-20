@@ -12,8 +12,10 @@ Implement the FastAPI back end described in `docs/api-contract.md`, using the re
 1. Create `src/macrodna/api/app.py` (FastAPI app factory `create_app(settings)`), `src/macrodna/api/queries.py`
    (DuckDB queries over the Parquet cache, returning the schema models) and a `macrodna serve` command in
    `src/macrodna/cli.py` that runs it with uvicorn on `127.0.0.1:8000`.
-2. Implement the five endpoints in the contract, including the 404 rule for teams with fewer than 6 games and
-   the optional `event` filter on the profile.
+2. Implement all endpoints in the contract, including the 404 rule for teams with fewer than 6 games and
+   the optional `event` filter on the profile. The three `/api/draft/*` endpoints wrap code that already exists:
+   `macrodna.draft.planner.plan_series` / `jungle_bridge` and `draft_backtest.json`. Map their results to the
+   models in `schemas.py` (`SeriesPlanResponse`, `DraftBacktest`, `JungleBridge`); do not re-implement the maths.
 3. Team and champion names come from `meta/teams.csv` and `meta/rosters.csv` under `STL_DATA_DIR`; if
    `rosters.csv` has no champion for a player, return `null`.
 4. Write tests in `tests/test_api.py` against a **tiny synthetic cache** that a fixture builds in a temp folder
@@ -27,4 +29,4 @@ Implement the FastAPI back end described in `docs/api-contract.md`, using the re
 - Recompute tell statistics in the API (read them from `tells.parquet`).
 - Add dependencies beyond what `pyproject.toml` already lists, unless essential (explain why).
 
-**Done when** the tests pass, `uv run macrodna serve` starts, and `/openapi.json` lists the five endpoints.
+**Done when** the tests pass, `uv run macrodna serve` starts, and `/openapi.json` lists every endpoint in the contract.

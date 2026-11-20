@@ -55,6 +55,33 @@ Result on the corpus: of 455 scored pairs, 5 pass the correction (1.1 %). The ra
 (5 % expected by chance), so there is a real but modest signal. We would rather show an honest profile with
 confidence intervals than invent certainty.
 
+## 5. Fearless draft: pool stress
+
+All 569 multi-game series in the corpus are Fearless: no champion is picked twice within a series. A picked
+champion is locked for **both** teams, so a player's comfortable pool shrinks game after game.
+
+- A player's **pool** is the champions they have played, weighted by recency (half-life 120 days). Pools need at
+  least 8 prior picks to be trusted; players with less history are shown as "not enough history", never guessed.
+- **Remaining mass** is the share of that pool still available after the locked champions and the bans.
+  **Stress** of a lineup is the lowest remaining mass among its players: the first role to run out.
+- **Series forecast**: a Monte Carlo of both teams picking from their pools under the lock rule gives the
+  probability that each role is critical (less than 35 % left) at game 2, 3 or 4.
+- **Ban targets**: for the most fragile roles, the champions whose removal takes the largest bite out of what the
+  player still has.
+- **Macro bridge**: for a jungle champion, how that jungler opens and where they appear first, from the jungle
+  detector (team level when the team has played it, league level otherwise, always with `n`).
+
+What the backtest says (no look-ahead; reproduce with `macrodna draft-build`):
+
+| Claim | Result | Reading |
+|---|---|---|
+| Pools really deplete | weakest role's pool left: 65 % (game 2), 44 %, 31 %, 20 % (game 5) | solid |
+| The simulator is realistic | game 2: simulated 0.687 vs real 0.658; game 3: 0.476 vs 0.451 | close; slightly optimistic because bans are not modelled |
+| Depletion predicts winning across games | critical pools win 47 % (n = 268, CI 41-53 %) vs about 51 % | **not demonstrated** |
+| Within the same game, the more comfortable lineup wins | 54.2 % (n = 863, CI 51-58 %, p = 0.014) | modest effect; one of several comparisons looked at, so suggestive only |
+
+We present pool stress as a planning aid for choosing what to ban and what to save, not as a win-rate predictor.
+
 ## Limitations
 
 - Positions arrive every 1-10 s per player, so timings are good to about 5 s, not to the second.

@@ -20,7 +20,7 @@ So the plan below has a **minimum** that satisfies the rules and **optional** ex
 | Tool | Work | Done when | Outcome |
 |---|---|---|---|
 | **DataGrip** | Explore the Parquet cache with SQL (DuckDB). Save at least five insight queries as `docs/sql/*.sql` (ban rate by game number, first lane by jungle champion, ...). | queries committed, each explained | |
-| **WebStorm + Junie/Air** | Self-contained components against fixed props: `PoolRunwayCard`, `DepletionChart`, `EvidenceDrawer`. | components render from fixtures, typed against the API models | |
+| **WebStorm + Junie/Air** | The app shell, `PoolRunwayCard` and `LineChart` exist (`web/`). Left for this tool: an `EvidenceDrawer` (the games behind a number), component tests with Vitest, and a keyboard/screen-reader pass. | drawer renders from fixtures, tests green, `npm run build` passes | |
 | **Air** (second use) | A parallel agent on a bounded task, reviewed beside the code, e.g. edge-case tests for the detectors. | diff reviewed and merged, with notes | |
 
 ## Practical notes

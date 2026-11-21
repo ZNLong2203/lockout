@@ -1,7 +1,7 @@
 // How often the co-pilot's top three contains the real choice, over finished real series, with no look-ahead.
 //
 //   uv run lockout serve            # in another terminal
-//   cd web && npm run eval:copilot  # N=80 OFFSET=0 by default; OFFSET=80 is the held-out set in docs/methodology.md
+//   cd web && npm run eval:copilot  # scores the 80 most recent series: the held-out set of `npm run train:copilot`
 //
 // Every series is replayed step by step with `advise` and the context the API builds from data *before* game 1
 // (pools, lineups, opponent's recent games, league meta). Prints aggregate rates only. Downloaded drafts are
@@ -12,21 +12,21 @@ import { ORDER, type GameDraft } from "../src/lib/draft";
 import type { ChampionStats, SeriesDraft, SeriesSummary } from "../src/api/types";
 
 const API = process.env.API ?? "http://127.0.0.1:8000";
-const N = Number(process.env.N ?? 80);
-const OFFSET = Number(process.env.OFFSET ?? 0);
+const HOLD = Number(process.env.HOLD ?? 80);
 const CACHE = new URL("../../private/cache/eval/", import.meta.url).pathname;
 const get = async <T>(path: string): Promise<T> => (await fetch(API + path)).json() as Promise<T>;
 
 mkdirSync(CACHE, { recursive: true });
-const file = `${CACHE}series_${OFFSET}_${N}.json`;
-let drafts: SeriesDraft[];
-if (existsSync(file)) drafts = JSON.parse(readFileSync(file, "utf8")) as SeriesDraft[];
+const file = `${CACHE}series_all.json`;
+let all: SeriesDraft[];
+if (existsSync(file)) all = JSON.parse(readFileSync(file, "utf8")) as SeriesDraft[];
 else {
-  const list = (await get<SeriesSummary[]>("/api/series?limit=200")).filter((s) => s.games >= 2).slice(OFFSET, OFFSET + N);
-  drafts = [];
-  for (const s of list) drafts.push(await get<SeriesDraft>(`/api/series/${s.series_id}/draft`));
-  writeFileSync(file, JSON.stringify(drafts));
+  const list = (await get<SeriesSummary[]>("/api/series?limit=1000")).filter((s) => s.games >= 2);
+  all = [];
+  for (const s of list) all.push(await get<SeriesDraft>(`/api/series/${s.series_id}/draft`));
+  writeFileSync(file, JSON.stringify(all));
 }
+const drafts = all.slice(0, HOLD);
 
 const kinds: Record<string, [number, number]> = {};
 let hits = 0;

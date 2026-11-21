@@ -18,7 +18,7 @@ the Best AI-Powered Workflow Story bonus is [docs/ai-workflow-story.md](docs/ai-
 - **Tests that fail on purpose.** The agent mutated its own code (route prefix, minimum game count, event scope)
   to prove the tests catch each change. A test also caught a deadlock in the win-model endpoint before it shipped.
 - **Measure, don't claim.** Every model was compared with a baseline on data it had not seen:
-  - the co-pilot: 24.8 % → 32.1 % → 34.1 % top-3 against a 25.8 % baseline;
+  - the co-pilot: 24.8 % → 32.1 % → 34.1 % → 34.8 % top-3 against a baseline of about 26 %;
   - the win model: log loss 0.651 → 0.639.
   When a tempting change made things worse on held-out data (a wider meta window, per-player Elo), it was dropped
   and written down. See [docs/methodology.md](docs/methodology.md).

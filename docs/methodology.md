@@ -97,42 +97,48 @@ We present pool stress as a planning aid for choosing what to ban and what to sa
 At each of the 20 steps the draft room shows three moves: the best ones for us on our turn, the likeliest ones for
 the opponent on theirs. Every card says why in one line and shows the sample it rests on.
 
-**Model.** Every champion still available is a candidate with 11 features:
+**Model.** Every champion still available is a candidate with 16 features:
 - its share of an open player's remaining comfort pool, and that player's games on it;
 - its share of the league's recent picks in an open player's role;
+- which role the team usually takes at this pick slot (league role order), combined with the meta and the pools;
 - league ban and pick rates, and the shrunk league win rate;
-- the opponent's last games (picked it, banned it);
-- the other team's comfort it would take (deny);
-- how thin the relevant player's pool already is;
-- how many open players have it (flex).
+- both teams' last games (picked it, banned it);
+- **bans earlier in this series**: Fearless locks picks but not bans, and teams ban the same threats again;
+- the other team's comfort it would take (deny), how thin the relevant pool already is, and flex.
 
 A softmax (conditional logit) over the candidates ranks them, with one weight vector per step type (our bans,
-our picks, their bans, their picks). The weights are learned with `npm run train:copilot` and are 44 numbers in
-`web/src/lib/copilot.ts`. The reason on each card is built from the features that contributed most to its score,
-so the explanation matches the ranking.
+our picks, their bans, their picks). `npm run train:copilot` learns the weights on 488 series (Jan 2025-Apr 2026;
+older series weigh less, half-life 180 days). The result is 64 numbers in `web/src/lib/copilot.ts`. The reason on
+each card is built from the features that contributed most to its score, so the explanation matches the ranking.
 
 **No look-ahead.** The real-series replay and the evaluation use a context the API builds from data *before*
-game 1 of the series: lineups from game 1, pools as of its start, the opponent's earlier games, and league meta of
-the 90 days before it.
+game 1 of the series: lineups from game 1, pools as of its start, both teams' earlier games, league meta and role
+order before it.
 
-**How often is the real choice in the top three?** Trained on the 80 most recent series (Apr-Oct 2026), checked
-once on the 58 older ones (Jan-Apr 2026). Reproduce with `cd web && npm run eval:copilot` against the local API.
+**How often is the real choice in the top three?** Held out: the 80 most recent series (Apr-Oct 2026), never used
+for training or for choosing the model. Reproduce with `cd web && npm run eval:copilot` against the local API.
 
-| Held-out set: 58 series, 3,179 steps | Top 3 contains the real choice |
+| 80 most recent series, 4,500 steps | Top 3 contains the real choice |
 |---|---|
-| **Learned ranker (current)** | **34.1 %** |
-| First version: hand-tuned blend of pool and role meta | 32.1 % |
-| Pool only | 24.8 % (tuning set) |
-| Baseline: the 3 available champions with the highest league presence | 25.8 % |
+| **Learned ranker, 16 features (current)** | **34.8 %** (bans 39-41 %, picks 29-30 %) |
+| The same without the series-ban features | 32.4 % |
+| Baseline: the 3 available champions with the highest league presence | 25.6 % |
 | Chance (3 of about 170) | about 2 % |
 
-By step type, held out: bans 33.4-36.7 %, picks 33.0-33.5 %. Three findings shaped the model:
+Earlier versions were checked on an older split (58 series, Jan-Apr 2026) and give the path:
+- pool only: 24.8 % (tuning set);
+- hand-tuned blend of pool and role meta: 32.1 %;
+- first learned ranker, 11 features: 34.1 %.
+
+What we learned along the way:
 - The league's role meta predicts picks better than a player's own pool. Under Fearless, pools run out and new
   champions appear (section above).
-- A recent 90-day meta window beat windows stretched to at least 100 or 300 games (held out 30.5 % and 28.2 %
+- A recent 90-day meta window beat windows stretched to at least 100 or 300 games (30.5 % and 28.2 % held out
   with the first model), because the extra games come from older patches.
-- When we ban, the opponent's recent picks matter (learned weight 1.42); for every step type, the league ban rate
-  is the strongest single signal for bans.
+- Ban habits within a series are the strongest new signal: bans went from 35 % to about 40 %.
+- More training data alone did not help (32.4 % with 488 series against 32.6 % for weights learned on far fewer);
+  the right features did.
+- Picks stay harder than bans: under Fearless a team often picks a champion its player has rarely played.
 
 This is a *prediction* metric. Our own recommendations are not meant to copy what teams did, so the same score is
 only a sanity check for them. Engage and the early/late power curve in the composition check come from a short
@@ -159,7 +165,13 @@ timeline), then scored once on the latest 25 %:
 
 Team strength sets the starting point and the draft moves it by a few points: draft features improve calibration
 and ranking (log loss, AUC) but not accuracy, which is close to what pre-game predictions of pro games usually
-reach. Per-player Elo (to follow roster changes) helped on the test set but not on validation, so it was left out.
+reach. Tried and not kept, because each failed to beat this model on the validation slice by more than noise:
+- per-player Elo, to follow roster changes (it helped on the test set but not on validation);
+- gradient boosting (scikit-learn): validation log loss 0.67-0.69 against 0.66, too little data for trees;
+- four more features (player proficiency on the champion, team form, series momentum, game number):
+  test log loss 0.637 against 0.639, accuracy unchanged.
+
+Pre-game predictions of professional games rarely go much past this level.
 A replay uses a model fitted only on games before the series. The bar is labelled "model" and its tooltip carries
 these numbers.
 

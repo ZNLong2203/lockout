@@ -99,6 +99,22 @@ export const DEMO_SERIES: SeriesContext = {
   },
   // League-wide share of picks that come from a player's top 3 champions, by game number (real aggregate).
   league_top3_share_by_game: [0.4, 0.31, 0.21, 0.14, 0.11],
+  ours_recent: [
+    recent(6, "Team Delta", true, [["Gnar", "top"], ["Vi", "jungle"], ["Azir", "mid"], ["Kalista", "adc"], ["Nautilus", "support"]], ["Rumble", "Wukong", "Ryze", "Jhin", "Rakan"]),
+    recent(7, "Team Kilo", false, [["Renekton", "top"], ["Sejuani", "jungle"], ["Ahri", "mid"], ["Ezreal", "adc"], ["Rell", "support"]], ["Wukong", "Rakan", "Jayce", "Viktor", "Ashe"]),
+  ],
+  // Invented role order by pick slot (side-n): which role a team tends to take with its n-th pick.
+  role_by_pick: Object.fromEntries(
+    (["blue", "red"] as const).flatMap((side) =>
+      [
+        { jungle: 0.3, support: 0.25, mid: 0.2, adc: 0.15, top: 0.1 },
+        { jungle: 0.25, support: 0.25, adc: 0.2, mid: 0.15, top: 0.15 },
+        { mid: 0.25, adc: 0.25, top: 0.2, support: 0.15, jungle: 0.15 },
+        { top: 0.35, mid: 0.25, adc: 0.2, jungle: 0.1, support: 0.1 },
+        { top: 0.4, mid: 0.3, adc: 0.15, jungle: 0.1, support: 0.05 },
+      ].map((d, i) => [`${side}-${i + 1}`, d]),
+    ),
+  ),
 };
 
 // --- SYNTHETIC league meta and one finished demo series, for the co-pilot and the real-series replay ---------

@@ -28,8 +28,10 @@ All of it was built with **JetBrains Air**, running the Claude agent, inside **P
 - The first co-pilot used players' comfort pools and scored 24.8 %: no better than "the three most popular
   champions" (23.6 %).
 - Measuring on real series showed why: under Fearless, pools run out, so the league's role meta matters more.
-- Air rebuilt it as a blend (32.1 %), then as a learned softmax ranker over 11 features (**34.1 %** on 58
-  held-out series, against a 25.8 % baseline).
+- Air rebuilt it as a blend (32.1 %), then as a learned softmax ranker (34.1 %).
+- Then it added the signal coaches know well: Fearless locks picks but not bans, so teams ban the same threats
+  again. That took bans to about 40 % and the whole co-pilot to **34.8 %** on the 80 most recent series, against a
+  25.6 % baseline.
 - Each suggestion's reason comes from the features that drove its score.
 
 **2. No peeking at the future.**
@@ -53,7 +55,7 @@ All of it was built with **JetBrains Air**, running the Claude agent, inside **P
 ## Results
 
 - A Fearless draft room with:
-  - a step-by-step co-pilot (34.1 % top-3, held out);
+  - a step-by-step co-pilot (34.8 % top-3 on the most recent series, held out);
   - a live win chance (66.7 % accuracy and AUC 0.69 on the latest 430 games);
   - a Fearless budget forecast;
   - a composition check;

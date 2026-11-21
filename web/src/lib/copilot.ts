@@ -72,24 +72,29 @@ export const FEATURES = [
   "roleMeta", // max share of the league's recent picks in an open player's role
   "banRate", // league ban rate
   "pickRate", // league pick rate
-  "theirPicks", // share of the opponent's last games where they picked it
-  "theirBans", // share of the opponent's last games where they banned it
+  "actingPicks", // share of the acting team's last games where it picked it
+  "actingBans", // share of the acting team's last games where it banned it
+  "otherPicks", // share of the other team's last games where it picked it
   "other", // picks: max share of a rival's remaining comfort (deny); bans: of the acting team's own comfort
   "fragile", // 1 - pool left, for the player it matters most to
   "winEdge", // shrunk league win rate - 0.5
   "flex", // open players who have it in their pool / 5
+  "slotMeta", // sum over open roles of P(role is taken at this pick slot) x league share in that role
+  "slotPool", // sum over open players of P(their role at this pick slot) x share of their remaining comfort
+  "seriesBansActing", // bans are not locked in Fearless: times the acting team banned it earlier in this series / game
+  "seriesBansOther", // times the other team banned it earlier in this series / game
 ] as const;
 
 /**
- * Softmax ranking weights per step type, learned on the 80 most recent real series with
- * `npm run train:copilot` and checked once on 58 older ones (docs/methodology.md). They are 44 aggregate
- * numbers, not data.
+ * Softmax ranking weights per step type, learned with `npm run train:copilot` on 488 real series (older games
+ * weigh less, half-life 180 days) and checked once on the 80 most recent ones (docs/methodology.md).
+ * They are 64 aggregate numbers, not data.
  */
 export const LEARNED: Record<string, number[]> = {
-  "ban-them": [0.677, 0.398, 1.118, 3.852, 0.708, 0.215, 2.077, -0.266, 0.657, 0.238, 0.582],
-  "ban-us": [0.792, 0.363, 1.556, 4.324, 0.998, 1.42, 1.061, -0.136, 0.46, 0.183, 0.424],
-  "pick-them": [0.457, 0.498, 2.468, 2.557, 1.478, 1.393, 0.753, -0.202, 0.762, 0.305, 0.547],
-  "pick-us": [0.728, 0.392, 2.502, 1.971, 1.887, 1.03, 1.015, 0.045, 0.952, 0.447, 0.699],
+  "ban-them": [0.423, 0.463, 1.262, 2.994, 1.066, 0.373, 1.632, 0.78, -0.203, 0.749, 0.413, 0.737, 0.707, 0.42, 1.626, 0.938],
+  "ban-us": [0.437, 0.461, 1.33, 3.071, 1.096, 0.32, 1.607, 0.679, -0.199, 0.692, 0.412, 0.778, 0.764, 0.523, 1.616, 0.89],
+  "pick-them": [0.21, 0.484, 2.338, 2.072, 1.817, 1.009, 0.782, 0.86, 0.24, 0.996, 0.387, 0.538, 1.579, 0.672, 0.709, 0.556],
+  "pick-us": [0.351, 0.456, 2.496, 1.988, 2.043, 0.792, 0.738, 0.847, 0.114, 1.019, 0.446, 0.5, 1.706, 0.641, 0.757, 0.696],
 };
 
 interface MetaIndex {
@@ -150,14 +155,39 @@ export function advise(ctx: SeriesContext, games: GameDraft[], index: number, op
   const theirPicks = draftList(game, themSide, "pick").filter((c): c is string => !!c);
   const usOpen = open(analyseTeam(ctx.ours, unavailable), assignPicks(ctx.ours, ourPicks, roleOf));
   const themOpen = open(analyseTeam(ctx.opponent, unavailable), assignPicks(ctx.opponent, theirPicks, roleOf));
-  const recent = ctx.opponent_recent;
-  const R = Math.max(recent.length, 1);
-  const recentPicks = counts(recent.flatMap((g) => g.picks.map((p) => p.champion)));
-  const recentBans = counts(recent.flatMap((g) => g.bans));
+  const recentOf = (games: SeriesContext["opponent_recent"]) => ({
+    n: Math.max(games.length, 1),
+    picks: counts(games.flatMap((g) => g.picks.map((p) => p.champion))),
+    bans: counts(games.flatMap((g) => g.bans)),
+  });
+  const actingRecent = recentOf((ours ? ctx.ours_recent : ctx.opponent_recent) ?? []);
+  const otherRecent = recentOf((ours ? ctx.opponent_recent : ctx.ours_recent) ?? []);
+  const R = actingRecent.n;
+  const recentPicks = actingRecent.picks;
+  const recentBans = actingRecent.bans;
   const acting = ours ? usOpen : themOpen;
   const target = ours ? themOpen : usOpen;
   const relevant = o.action === "pick" ? acting : target; // whose pool the move is about
   const other = o.action === "pick" ? target : acting;
+  // which role the relevant team takes next: league share of each open role at its next pick slot
+  const relevantSide = o.action === "pick" ? o.side : o.side === "blue" ? "red" : "blue";
+  const slotN = draftList(game, relevantSide, "pick").filter((c) => !!c).length + 1;
+  const slotRaw = ctx.role_by_pick?.[`${relevantSide}-${Math.min(slotN, 5)}`] ?? {};
+  const slotTotal = relevant.reduce((acc, s) => acc + (slotRaw[s.player.role] ?? 0), 0);
+  const slotP = (role: string) => (slotTotal > 0 ? (slotRaw[role] ?? 0) / slotTotal : relevant.length ? 1 / relevant.length : 0);
+  // bans earlier in this series, by side of "us"/"them" (sides swap between games, teams do not)
+  const seriesBans = { us: new Map<string, number>(), them: new Map<string, number>() };
+  games.slice(0, index).forEach((g) =>
+    ORDER.forEach((oo, i) => {
+      const c = g.steps[i];
+      if (oo.action !== "ban" || !c) return;
+      const who = oo.side === g.ourSide ? "us" : "them";
+      seriesBans[who].set(c, (seriesBans[who].get(c) ?? 0) + 1);
+    }),
+  );
+  const played = Math.max(index, 1);
+  const actingBansSeries = ours ? seriesBans.us : seriesBans.them;
+  const otherBansSeries = ours ? seriesBans.them : seriesBans.us;
   const roleDist = new Map(relevant.map((s) => [s.player.role, norm(mi.rolePick.get(s.player.role), unavailable)]));
   const share = (s: RoleState, c: string) => (s.mass > 0 ? (s.available.find((e) => e.champion === c)?.share ?? 0) / s.mass : 0);
 
@@ -194,10 +224,15 @@ export function advise(ctx: SeriesContext, games: GameDraft[], index: number, op
       m && m.games ? m.picks / m.games : 0,
       (recentPicks.get(c) ?? 0) / R,
       (recentBans.get(c) ?? 0) / R,
+      (otherRecent.picks.get(c) ?? 0) / otherRecent.n,
       f7,
       sb ? 1 - sb.mass : 0,
       m ? (m.wins + 10) / (m.picks + 20) - 0.5 : 0,
       relevant.filter((s) => s.available.some((e) => e.champion === c)).length / 5,
+      relevant.reduce((acc, s) => acc + slotP(s.player.role) * (roleDist.get(s.player.role)?.get(c) ?? 0), 0),
+      relevant.reduce((acc, s) => acc + slotP(s.player.role) * share(s, c), 0),
+      (actingBansSeries.get(c) ?? 0) / played,
+      (otherBansSeries.get(c) ?? 0) / played,
     ]);
     why.push({ sb, sr, rival, games });
   }
@@ -214,6 +249,7 @@ export function advise(ctx: SeriesContext, games: GameDraft[], index: number, op
     const bits: string[] = [];
     const tags: Suggestion["tags"] = [];
     const theirs = o.action === "pick" ? !ours : ours; // the relevant players belong to the opponent
+    const player = y.sb ?? y.sr;
     for (const { i } of contrib) {
       if (bits.length >= 2) break;
       if ((i === 0 || i === 1) && y.sb && !bits.some((b) => b.includes(y.sb?.player.name ?? "\u0000"))) {
@@ -225,34 +261,38 @@ export function advise(ctx: SeriesContext, games: GameDraft[], index: number, op
       } else if (i === 2 && y.sr) bits.push(`league: ${pct(x[2] ?? 0)} of recent ${ROLE_WORD[y.sr.player.role]} picks`);
       else if (i === 3 && m) bits.push(`banned in ${pct(x[3] ?? 0)} of league games`);
       else if (i === 4 && m) bits.push(`picked in ${pct(x[4] ?? 0)} of league games`);
-      else if (i === 5) bits.push(`picked in ${recentPicks.get(c)} of their last ${R}`);
-      else if (i === 6) bits.push(`they banned it ${recentBans.get(c)}/${R} recently`);
-      else if (i === 7 && y.rival && o.action === "pick")
-        bits.push((x[7] ?? 0) >= 0.9 ? `takes ${y.rival.player.name}'s last comfort pick` : `takes ${pct(x[7] ?? 0)} of what ${y.rival.player.name} has left`);
-      else if (i === 8 && y.sb) bits.push(`${y.sb.player.name}'s pool is down to ${pct(y.sb.mass)}`);
-      else if (i === 9 && m) bits.push(`${pct((m.wins + 10) / (m.picks + 20))} league win rate`);
-      else if (i === 10 && (x[10] ?? 0) >= 0.4) bits.push(`flex: ${Math.round((x[10] ?? 0) * 5)} players play it`);
+      else if (i === 5) bits.push(`${ours ? "we" : "they"} picked it in ${recentPicks.get(c)} of the last ${R}`);
+      else if (i === 6) bits.push(`${ours ? "we" : "they"} banned it ${recentBans.get(c)}/${R} recently`);
+      else if (i === 7) bits.push(`${ours ? "they" : "we"} picked it in ${otherRecent.picks.get(c)} of the last ${otherRecent.n}`);
+      else if (i === 8 && y.rival && o.action === "pick")
+        bits.push((x[8] ?? 0) >= 0.9 ? `takes ${y.rival.player.name}'s last comfort pick` : `takes ${pct(x[8] ?? 0)} of what ${y.rival.player.name} has left`);
+      else if (i === 9 && y.sb) bits.push(`${y.sb.player.name}'s pool is down to ${pct(y.sb.mass)}`);
+      else if (i === 10 && m) bits.push(`${pct((m.wins + 10) / (m.picks + 20))} league win rate`);
+      else if (i === 11 && (x[11] ?? 0) >= 0.4) bits.push(`flex: ${Math.round((x[11] ?? 0) * 5)} players play it`);
+      else if ((i === 12 || i === 13) && player) bits.push(`${ROLE_WORD[player.player.role]} usually picks around now`);
+      else if (i === 14) bits.push(`${ours ? "we" : "they"} banned it in ${actingBansSeries.get(c)} earlier game${(actingBansSeries.get(c) ?? 0) > 1 ? "s" : ""} of this series`);
+      else if (i === 15) bits.push(`${ours ? "they" : "we"} banned it in ${otherBansSeries.get(c)} earlier game${(otherBansSeries.get(c) ?? 0) > 1 ? "s" : ""} of this series`);
     }
     if ((x[0] ?? 0) > 0) {
       if (o.action === "pick") tags.push("comfort");
       else if (y.sb && y.sb.status !== "ok") tags.push("fragile");
     }
-    if (o.action === "pick" && ours && (x[7] ?? 0) > 0.05) tags.push("deny");
-    if ((x[5] ?? 0) > 0 || (x[6] ?? 0) > 0) tags.push(ours && o.action === "pick" ? "ban-risk" : "habit");
+    if (o.action === "pick" && ours && (x[8] ?? 0) > 0.05) tags.push("deny");
+    if ((x[5] ?? 0) > 0 || (x[6] ?? 0) > 0) tags.push("habit");
+    if (ours && o.action === "pick" && (otherRecent.bans.get(c) ?? 0) > 0) tags.push("ban-risk");
     const fit = comp ? fills(comp, opts.info?.(c), c) : null;
     if (fit) {
       tags.push("comp");
       if (bits.length < 2) bits.push(fit);
     }
     const lead = contrib[0]?.i;
-    const player = y.sb ?? y.sr;
     return {
       champion: c,
       score,
       title: o.action === "ban" ? (ours ? `Ban ${c}` : `They may ban ${c}`) : ours ? `Pick ${c}` : `Likely ${c}`,
       reason: bits.join(" · ") || "league pattern",
       evidence:
-        (lead === 0 || lead === 1 || lead === 8) && y.sb ? `n = ${y.games} games by ${y.sb.player.name}` : m ? `n = ${m.games} league games` : `n = ${R} games`,
+        (lead === 0 || lead === 1 || lead === 9 || lead === 13) && y.sb ? `n = ${y.games} games by ${y.sb.player.name}` : m ? `n = ${m.games} league games` : `n = ${R} games`,
       player: player?.player.name,
       role: player?.player.role,
       tags,

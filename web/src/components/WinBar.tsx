@@ -24,6 +24,7 @@ export function WinBar({ model, timeline, ours, opponent }: Props) {
   const tip =
     `Logistic model on team Elo and the draft (pool comfort, champion win rates, Fearless pool left), fitted on ${model.n_train} earlier games. ` +
     `On ${ev.n_test} later games: ${pct(ev.accuracy)} accurate, AUC ${ev.auc.toFixed(2)}; Elo alone ${pct(ev.elo_accuracy)}, AUC ${ev.elo_auc.toFixed(2)}. ` +
+    `When it gave one side 65% or more (${ev.confident_n} games), it was right ${pct(ev.confident_accuracy)} of the time. ` +
     `Team strength sets the start; the draft moves it by a few points.`;
   return (
     <div className="winbar" aria-label={`Win chance: ${ours} ${pct(now)}, ${opponent} ${pct(1 - now)}`}>
@@ -33,6 +34,11 @@ export function WinBar({ model, timeline, ours, opponent }: Props) {
           {moved >= 0 ? "+" : ""}
           {moved.toFixed(1)} pts this draft
         </span>
+        {Math.max(now, 1 - now) >= 0.65 && (
+          <span className="wb-sure" title={`When the model is this confident it was right ${pct(ev.confident_accuracy)} of the time (${ev.confident_n} later games)`}>
+            confident · right {pct(ev.confident_accuracy)} of the time
+          </span>
+        )}
         <span className="wb-info" title={tip}>
           <Info size={13} aria-label="How this is computed" />
         </span>

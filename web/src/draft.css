@@ -226,3 +226,12 @@
 .win-delta.up { background: color-mix(in srgb, var(--good) 22%, transparent); color: #c8f7c8; }
 .win-delta.down { background: color-mix(in srgb, var(--critical) 22%, transparent); color: #ffd0d0; }
 @media (max-width: 700px) { .wb-spark { display: none; } }
+
+/* --- co-pilot shortlist (ranks 4-10) ---------------------------------------------------------------------- */
+.shortlist-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.shortlist-row .sl-k { font-size: 0.68rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-right: 2px; cursor: help; }
+.sl-chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px 2px 2px; border-radius: 999px; border: 1px solid var(--ring); background: rgba(255, 255, 255, 0.03); color: var(--ink-2); font-size: 0.76rem; cursor: pointer; }
+.sl-chip:hover:not(:disabled) { border-color: var(--accent); color: var(--ink); }
+.sl-chip:disabled { cursor: default; }
+.sl-chip .champ { border-radius: 50%; }
+.wb-sure { font-size: 0.68rem; padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 18%, transparent); color: #c9efff; }

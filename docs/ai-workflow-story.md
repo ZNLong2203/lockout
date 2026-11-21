@@ -30,8 +30,10 @@ All of it was built with **JetBrains Air**, running the Claude agent, inside **P
 - Measuring on real series showed why: under Fearless, pools run out, so the league's role meta matters more.
 - Air rebuilt it as a blend (32.1 %), then as a learned softmax ranker (34.1 %).
 - Then it added the signal coaches know well: Fearless locks picks but not bans, so teams ban the same threats
-  again. That took bans to about 40 % and the whole co-pilot to **34.8 %** on the 80 most recent series, against a
-  25.6 % baseline.
+  again. That took bans to about 40 % and the whole co-pilot to 34.8 % on the 80 most recent series.
+- Finally a LightGBM LambdaRank re-ranker: **39.9 % top 3 and 72.9 % top 10**, against a 25.6 % top-3 baseline.
+  Its first version claimed 42.8 %. Replaying it in the browser code gave 37.2 %, which exposed a label leak in
+  the export. It was fixed before any number was published, and now both agree exactly.
 - Each suggestion's reason comes from the features that drove its score.
 
 **2. No peeking at the future.**
@@ -55,8 +57,8 @@ All of it was built with **JetBrains Air**, running the Claude agent, inside **P
 ## Results
 
 - A Fearless draft room with:
-  - a step-by-step co-pilot (34.8 % top-3 on the most recent series, held out);
-  - a live win chance (66.7 % accuracy and AUC 0.69 on the latest 430 games);
+  - a step-by-step co-pilot (39.9 % top 3, 72.9 % top 10 on the most recent series, held out);
+  - a live win chance (73.6 % right when confident, 66.7 % overall, on the latest 430 games);
   - a Fearless budget forecast;
   - a composition check;
   - a replay of real series.

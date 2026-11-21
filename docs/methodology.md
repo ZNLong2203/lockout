@@ -115,15 +115,36 @@ each card is built from the features that contributed most to its score, so the 
 game 1 of the series: lineups from game 1, pools as of its start, both teams' earlier games, league meta and role
 order before it.
 
-**How often is the real choice in the top three?** Held out: the 80 most recent series (Apr-Oct 2026), never used
-for training or for choosing the model. Reproduce with `cd web && npm run eval:copilot` against the local API.
+**Tree re-ranker (live mode).** A LightGBM LambdaRank model re-ranks the linear model's top 60 candidates. It
+uses the same features plus the step, the game number, whether the champion's main role is still open on each
+side, what the players have actually played in the last 30 days (any champion, not only their top 8) and the
+21-day meta trend. Trees capture interactions the linear model cannot: the same signal means something else at
+the first ban of game 1 and at the fourth ban of game 3.
+- Steps: `npm run export:features`, then `lockout copilot-train` (needs `uv sync --group ml`).
+- Split by series and time: the 80 most recent series are the test set; the next 80 are for early stopping and
+  for choosing settings; every older series is for training.
+- The fitted model is derived from licensed data. It stays in the gitignored cache and is served only by the local
+  API, so the public demo uses the linear model.
+- `npm run eval:copilot` scores both models in the browser code. It gives the same numbers as Python, which checks
+  that the tree export is right.
 
-| 80 most recent series, 4,500 steps | Top 3 contains the real choice |
-|---|---|
-| **Learned ranker, 16 features (current)** | **34.8 %** (bans 39-41 %, picks 29-30 %) |
-| The same without the series-ban features | 32.4 % |
-| Baseline: the 3 available champions with the highest league presence | 25.6 % |
-| Chance (3 of about 170) | about 2 % |
+**How often is the real choice in the co-pilot's list?** Held out: the 80 most recent series (Apr-Oct 2026),
+4,500 steps, never used for training or for any choice. Reproduce with `cd web && npm run eval:copilot`.
+
+| Real choice within… | Top 1 | Top 3 | Top 5 | Top 10 |
+|---|---|---|---|---|
+| **Linear + LightGBM re-ranker (live mode)** | **17.1 %** | **39.9 %** | **54.3 %** | **72.9 %** |
+| Linear softmax, 16 features (public demo) | 15.1 % | 34.9 % | 46.9 % | 63.9 % |
+| Baseline: available champions by league presence | - | 25.6 % | - | - |
+| Chance (about 170 champions) | 0.6 % | 2 % | 3 % | 6 % |
+
+In the top 3, bans reach 44.6 % and picks 34.8-35.5 %. The draft room shows the top 3 as cards and ranks 4-10 as
+a shortlist.
+
+**A leak we caught.** The first tree model scored 42.8 % top 3 in Python but only 37.2 % when the browser code
+replayed it. The export had added the real choice to the candidates whenever the linear model had missed it, so a
+rank of 40 or more gave the answer away. The fix: candidates are the linear top 60 and nothing else. With that fix,
+Python and the browser agree exactly.
 
 Earlier versions were checked on an older split (58 series, Jan-Apr 2026) and give the path:
 - pool only: 24.8 % (tuning set);
@@ -136,8 +157,8 @@ What we learned along the way:
 - A recent 90-day meta window beat windows stretched to at least 100 or 300 games (30.5 % and 28.2 % held out
   with the first model), because the extra games come from older patches.
 - Ban habits within a series are the strongest new signal: bans went from 35 % to about 40 %.
-- More training data alone did not help (32.4 % with 488 series against 32.6 % for weights learned on far fewer);
-  the right features did.
+- More training data alone did not help the linear model (32.4 % with 488 series against 32.6 % for weights
+  learned on far fewer); the right features did, and then trees.
 - Picks stay harder than bans: under Fearless a team often picks a champion its player has rarely played.
 
 This is a *prediction* metric. Our own recommendations are not meant to copy what teams did, so the same score is
@@ -162,6 +183,11 @@ timeline), then scored once on the latest 25 %:
 | Elo alone (same settings) | 67.7 % | 0.641 | 0.681 |
 | First version (K = 24, no off-season pull) | 66.7 % | 0.651 | 0.679 |
 | Always blue | 51.8 % | 0.690 | - |
+
+**When the model is confident.** It gave one side 65 % or more in 174 of the 430 test games and was right in
+73.6 % of them (70.7 % over the 256 games at 60 % or more). It is well calibrated up to 80 %: when it said about
+75 %, the actual rate was 75.9 % (n = 87). Above 80 % it was over-confident (65.4 %, n = 26). The win bar shows a
+"confident" badge from 65 %.
 
 Team strength sets the starting point and the draft moves it by a few points: draft features improve calibration
 and ranking (log loss, AUC) but not accuracy, which is close to what pre-game predictions of pro games usually

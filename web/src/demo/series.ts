@@ -16,6 +16,8 @@ const team = (team_id: string, name: string, short: string, raw: Raw[]): TeamCtx
       role,
       history,
       pool: pool.map(([champion, share]) => ({ champion, share, games: Math.max(1, Math.round(share * history)) })),
+      // invented: the last month's picks come from the top of the pool
+      recent: Object.fromEntries(pool.slice(0, 3).map(([champion], i) => [champion, 3 - i])),
     }),
   ),
 });
@@ -149,6 +151,7 @@ export const DEMO_META: ChampionStats[] = (() => {
         win_rate: 0.44 + ((i * 13 + pi) % 12) / 100,
         roles: { [p.role]: 1 },
         role: p.role,
+        presence_recent: Math.min(1, ((picks + bans) / GAMES) * (0.8 + ((pi + i) % 5) / 10)),
       });
     }),
   );
@@ -204,7 +207,7 @@ export const DEMO_WIN_MODEL: WinModel = {
   pool_top: 8,
   evaluation: {
     n_train: 300, n_test: 100, accuracy: 0.66, log_loss: 0.64, auc: 0.69,
-    elo_accuracy: 0.65, elo_log_loss: 0.645, elo_auc: 0.68, blue_rate: 0.52, blue_log_loss: 0.69,
+    elo_accuracy: 0.65, elo_log_loss: 0.645, elo_auc: 0.68, blue_rate: 0.52, blue_log_loss: 0.69, confident_n: 40, confident_accuracy: 0.72,
   },
   notes: ["Synthetic demo model: invented ratings and coefficients."],
 };

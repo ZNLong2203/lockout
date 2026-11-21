@@ -6,6 +6,7 @@
 import type { ChampionStats, Role } from "../api/types";
 import { composition, fills } from "./comp";
 import type { ChampInfo } from "./ddragon";
+import { treeScore, type FlatTree } from "./gbm";
 import {
   ORDER,
   analyseTeam,
@@ -53,6 +54,21 @@ export interface Options {
   weights?: Record<string, number[]>;
   /** Receives every candidate's features before ranking: used by training. */
   trace?: (t: Trace) => void;
+  /** A gradient-boosted re-ranker of the linear model's top candidates (live mode, from the local API). */
+  ranker?: Ranker | null;
+}
+
+/** LightGBM LambdaRank model over `rankerRow` features, trained by `lockout copilot-train`. */
+export interface Ranker {
+  top: number;
+  trees: FlatTree[];
+}
+
+export const STEP_KEYS = ["ban-us", "ban-them", "pick-us", "pick-them"] as const;
+
+/** The re-ranker's features for one candidate; the Python trainer reads the same layout from the export. */
+export function rankerRow(x: number[], extra: number[], lin: number, linRank: number, key: string, step: number, game: number): number[] {
+  return [...x, lin, linRank, STEP_KEYS.indexOf(key as (typeof STEP_KEYS)[number]), step, game, ...extra];
 }
 
 const ROLE_WORD: Record<string, string> = { top: "top", jungle: "jungler", mid: "mid", adc: "ADC", support: "support", unknown: "player" };
@@ -132,6 +148,9 @@ export interface Trace {
   key: string;
   champions: string[];
   X: number[][];
+  extra: number[][]; // tree-only: main role open (acting, target), presence, players' last-30-day share (relevant, other), 21-day presence, trend
+  step: number;
+  game: number;
 }
 
 /** Advice for the next empty step of `games[index]`; null when the draft is complete. */
@@ -236,10 +255,35 @@ export function advise(ctx: SeriesContext, games: GameDraft[], index: number, op
     ]);
     why.push({ sb, sr, rival, games });
   }
-  opts.trace?.({ key, champions, X });
+  const actingRoles = new Set<string>(acting.map((s) => s.player.role));
+  const targetRoles = new Set<string>(target.map((s) => s.player.role));
+  // what the relevant players have actually been playing this month (any champion, not only their top 8)
+  const recentShare = (s: RoleState, c: string) => {
+    const r = s.player.recent ?? {};
+    const total = Object.values(r).reduce((a, b) => a + b, 0);
+    return total ? (r[c] ?? 0) / total : 0;
+  };
+  const extra = champions.map((c) => {
+    const m = meta?.get(c);
+    return [
+      m && actingRoles.has(m.role) ? 1 : 0,
+      m && targetRoles.has(m.role) ? 1 : 0,
+      m?.presence ?? 0,
+      relevant.reduce((acc, s) => Math.max(acc, recentShare(s, c)), 0),
+      other.reduce((acc, s) => Math.max(acc, recentShare(s, c)), 0),
+      m?.presence_recent ?? 0,
+      (m?.presence_recent ?? 0) - (m?.presence ?? 0),
+    ];
+  });
+  opts.trace?.({ key, champions, X, extra, step, game: index + 1 });
 
   const scores = X.map((x) => x.reduce((acc, v, i) => acc + v * (w[i] ?? 0), 0));
-  const order = scores.map((_, i) => i).sort((a, b) => (scores[b] as number) - (scores[a] as number) || (champions[a] as string).localeCompare(champions[b] as string));
+  let order = scores.map((_, i) => i).sort((a, b) => (scores[b] as number) - (scores[a] as number) || (champions[a] as string).localeCompare(champions[b] as string));
+  if (opts.ranker && opts.ranker.trees.length) {
+    const head = order.slice(0, opts.ranker.top);
+    const rs = new Map(head.map((i, rank) => [i, treeScore((opts.ranker as Ranker).trees, rankerRow(X[i] as number[], extra[i] as number[], scores[i] as number, rank, key, step, index + 1))]));
+    order = [...head.sort((a, b) => (rs.get(b) as number) - (rs.get(a) as number)), ...order.slice(opts.ranker.top)];
+  }
   const comp = ours && o.action === "pick" ? composition(ourPicks, opts.info ?? (() => undefined)) : null;
   const suggestions = order.slice(0, k).map((i) => explain(champions[i] as string, X[i] as number[], w, why[i] as (typeof why)[number], scores[i] as number));
 
@@ -303,7 +347,8 @@ export function advise(ctx: SeriesContext, games: GameDraft[], index: number, op
 }
 
 export interface CallRate {
-  hits: number;
+  hits: number; // real choice in the top 3
+  hits10: number; // real choice in the top-10 shortlist
   total: number;
   /** Per step of games[index]: true = the real choice was in the top 3, false = it was not, null = not drafted. */
   steps: (boolean | null)[];
@@ -316,7 +361,7 @@ export interface CallRate {
  * each step (later steps of that game and later games are hidden while scoring it).
  */
 export function callRate(ctx: SeriesContext, games: GameDraft[], index: number, opts: Options = {}): CallRate {
-  const out: CallRate = { hits: 0, total: 0, steps: Array<boolean | null>(ORDER.length).fill(null), ours: { hits: 0, total: 0 }, theirs: { hits: 0, total: 0 } };
+  const out: CallRate = { hits: 0, hits10: 0, total: 0, steps: Array<boolean | null>(ORDER.length).fill(null), ours: { hits: 0, total: 0 }, theirs: { hits: 0, total: 0 } };
   for (let gi = 0; gi <= index && gi < games.length; gi++) {
     const g = games[gi] as GameDraft;
     for (let s = 0; s < ORDER.length; s++) {
@@ -325,9 +370,10 @@ export function callRate(ctx: SeriesContext, games: GameDraft[], index: number, 
       const before: GameDraft = { ...g, steps: g.steps.map((c, i) => (i < s ? c : null)), winner: null };
       // a missed ban earlier in the game leaves a hole; fill it with a placeholder so the step lines up
       before.steps = before.steps.map((c, i) => (i < s && c === null ? "—" : c));
-      const advice = advise(ctx, [...games.slice(0, gi), before], gi, opts);
+      const advice = advise(ctx, [...games.slice(0, gi), before], gi, { ...opts, k: 10 });
       if (!advice || advice.step !== s) continue;
-      const hit = advice.suggestions.some((x) => x.champion === actual);
+      const hit = advice.suggestions.slice(0, 3).some((x) => x.champion === actual);
+      if (advice.suggestions.some((x) => x.champion === actual)) out.hits10++;
       const bucket = advice.ours ? out.ours : out.theirs;
       bucket.total++;
       out.total++;

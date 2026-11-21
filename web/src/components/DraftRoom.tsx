@@ -1,7 +1,7 @@
 import { ArrowLeftRight, ChevronDown, History } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { fetchBacktest, fetchChampions, fetchContext, fetchWinModel, isLive } from "../api/client";
-import type { ChampionStats, DraftBacktest, SeriesDraft, TeamSummary, WinModel } from "../api/types";
+import { fetchBacktest, fetchChampions, fetchContext, fetchCopilotRanker, fetchWinModel, isLive } from "../api/client";
+import type { ChampionStats, CopilotRanker, DraftBacktest, SeriesDraft, TeamSummary, WinModel } from "../api/types";
 import { buildBudget } from "../lib/budget";
 import { winChance, winTimeline } from "../lib/winprob";
 import { advise, callRate, type Meta } from "../lib/copilot";
@@ -54,6 +54,7 @@ export function DraftRoom({ teams, matchup, onMatchup }: Props) {
   const [picking, setPicking] = useState(false);
   const [replay, setReplay] = useState<ReplayState | null>(null);
   const [winModel, setWinModel] = useState<WinModel | null>(null);
+  const [ranker, setRanker] = useState<CopilotRanker | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -78,6 +79,7 @@ export function DraftRoom({ teams, matchup, onMatchup }: Props) {
   useEffect(() => {
     fetchBacktest().then(setBacktest).catch(() => setBacktest(null));
     fetchChampions().then((rows) => setLiveMeta(toMeta(rows)));
+    fetchCopilotRanker().then(setRanker);
   }, []);
 
   // the win model of the matchup on screen; a replay uses one fitted only on games before the series
@@ -133,11 +135,11 @@ export function DraftRoom({ teams, matchup, onMatchup }: Props) {
     const theirPicks = draftList(game, sideOf(game, "them"), "pick").filter((x): x is string => !!x && x !== "—");
     const jgPlayer = c.opponent.players.find((p) => p.role === "jungle");
     const theirJungle = jgPlayer ? (assignPicks(c.opponent, theirPicks, (x) => meta.get(x)?.role).get(jgPlayer.player_id) ?? null) : null;
-    const opts = { meta, info };
-    const advice = advise(c, gs, i, opts);
+    const opts = { meta, info, ranker };
+    const advice = advise(c, gs, i, { ...opts, k: 10 });
     const calls = callRate(c, gs, i, opts);
     return { game, locked, used, bannedNow, them, us, jungleOptions, theirJungle, jgPlayer, advice, calls };
-  }, [shown, catalog]);
+  }, [shown, catalog, ranker]);
 
   const win = useMemo(() => {
     if (!winModel || !shown || !view) return null;

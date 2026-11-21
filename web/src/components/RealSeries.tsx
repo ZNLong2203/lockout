@@ -163,7 +163,7 @@ export function RealSeriesBar({ replay, calls, onChange, onExit }: { replay: Rep
         </span>
         {calls.total > 0 && (
           <span className="rs-calls" title="Revealed steps where the real choice was in the co-pilot's top three">
-            Co-pilot called <b>{calls.hits}</b> of {calls.total} ({pct(calls.hits / calls.total)})
+            Co-pilot top 3 <b>{calls.hits}</b>/{calls.total} ({pct(calls.hits / calls.total)}) · top 10 <b>{calls.hits10}</b> ({pct(calls.hits10 / calls.total)})
           </span>
         )}
         <button type="button" className="ghost" onClick={onExit}>

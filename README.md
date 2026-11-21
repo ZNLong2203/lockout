@@ -9,8 +9,8 @@ In Fearless Draft every champion picked in a game is locked for the rest of the 
 A player's comfortable pool shrinks game after game, and by game 3 or 4 some role is playing off its pool.
 Coaches track this in spreadsheets. Lockout reads the official GRID feeds (745 series, 1,739 games) and answers:
 
-- **What should we do on this exact step?** A **draft co-pilot** gives three moves at each of the 20 steps: the best ones for us on our turn, the likeliest ones for them on theirs. Each comes with a one-line reason and its sample size. A learned ranking model (16 features, softmax) had the real choice in its top three **35 %** of the time on the 80 most recent real series (bans: 40 %), held out from training, against 26 % for a league-meta baseline and about 2 % by chance ([how it was measured](docs/methodology.md#draft-co-pilot-step-by-step)).
-- **Are we winning this draft?** A **live win chance** updates after every pick and shows how each suggested pick would move it. A logistic model on team Elo plus the draft, scored on the latest 430 games: 66.7 % accurate, AUC 0.69; the draft moves it by a few points, and the tooltip says so ([details](docs/methodology.md#live-draft-win-chance)).
+- **What should we do on this exact step?** A **draft co-pilot** gives three moves at each of the 20 steps: the best ones for us on our turn, the likeliest ones for them on theirs. Each comes with a one-line reason and its sample size. A learned softmax ranker plus a LightGBM re-ranker had the real choice in its **top 10 shortlist 73 %** of the time, and in its top 3 cards **40 %** (bans 45 %). That is on the 80 most recent real series, held out from training, against 26 % top 3 for a league-meta baseline and about 2 % by chance ([how it was measured](docs/methodology.md#draft-co-pilot-step-by-step)).
+- **Are we winning this draft?** A **live win chance** updates after every pick and shows how each suggested pick would move it. A logistic model on team Elo plus the draft, scored on the latest 430 games: **73.6 % right when it is confident** (65 %+, 40 % of games), 66.7 % over all games, AUC 0.69. The draft moves it by a few points, and the tooltip says so ([details](docs/methodology.md#live-draft-win-chance)).
 - **Which of their roles runs out of champions first, and what would a ban take away?** A **Fearless budget** table shows every player's comfort pool game by game: exact for games played, a Monte Carlo forecast after. Hovering a champion shows what picking it now costs both teams in later games.
 - **And ours?** The same view for our own lineup: which champions to save for game 3 or 4, plus a composition check (damage split, frontline, engage, range) under each side's picks.
 - **Would it have worked?** **Replay a real series** draft by draft: the co-pilot sees only what was known before game 1, and every step it called gets a check mark.
@@ -72,7 +72,8 @@ written to `private/cache/`, which is gitignored.
 
 **Tests.** `uv run pytest` (Python, API and contract tests on synthetic data), `uv run ruff check src tests`,
 `cd web && npm test && npm run build`. With the API running on the real data, `cd web && npm run eval:copilot` re-scores
-the co-pilot on real series (aggregate rates only).
+the co-pilot on real series (aggregate rates only). The live-mode tree re-ranker is trained locally with
+`uv sync --group ml`, `cd web && npm run export:features`, then `uv run lockout copilot-train`.
 
 ## Documentation
 

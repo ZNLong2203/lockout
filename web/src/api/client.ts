@@ -5,6 +5,7 @@ import type { SeriesContext } from "../lib/draft";
 import { MOCK_BACKTEST, mockPlan } from "./fixtures";
 import type {
   ChampionStats,
+  CopilotRanker,
   DraftBacktest,
   EvidenceItem,
   PlanQuery,
@@ -109,3 +110,7 @@ export function fetchWinModel(team: string, opponent: string, before?: string): 
   if (before) params.set("before", before);
   return getJson<WinModel>(`/api/draft/win-model?${params}`).catch(() => null);
 }
+
+/** The co-pilot's tree re-ranker from the local API; null in demo mode or before `lockout copilot-train`. */
+export const fetchCopilotRanker = (): Promise<CopilotRanker | null> =>
+  isLive ? getJson<CopilotRanker>("/api/draft/copilot-ranker").catch(() => null) : Promise.resolve(null);

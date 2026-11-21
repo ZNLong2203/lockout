@@ -104,13 +104,14 @@ export function DraftBoard({ ctx, games, index, advice, calls, meta, last, onPic
     if (m && Object.keys(m.roles).length) return (m.roles[r] ?? 0) >= 0.15;
     return poolRole.get(c)?.has(r) ?? false;
   };
-  const rank = new Map((advice?.suggestions ?? []).map((s, i) => [s.champion, i + 1]));
+  const rank = new Map((advice?.suggestions ?? []).slice(0, 3).map((s, i) => [s.champion, i + 1]));
+  const top10 = new Set((advice?.suggestions ?? []).map((s) => s.champion));
   const universe = catalog.names.length ? catalog.names : [...new Set([...ourPool, ...theirPool, ...(meta ? [...meta.keys()] : [])])].sort();
   const shown = universe.filter(
     (c) =>
       c.toLowerCase().includes(query.toLowerCase()) &&
       (role === "all" || playsRole(c, role)) &&
-      (filter === "all" || (filter === "suggested" ? rank.has(c) : filter === "ours" ? ourPool.has(c) : theirPool.has(c))),
+      (filter === "all" || (filter === "suggested" ? top10.has(c) : filter === "ours" ? ourPool.has(c) : theirPool.has(c))),
   );
   const step = nextStep(game);
   const current = step >= 0 ? ORDER[step] : null;
@@ -147,7 +148,7 @@ export function DraftBoard({ ctx, games, index, advice, calls, meta, last, onPic
             <div className="chips" role="radiogroup" aria-label="Show champions">
               {(["all", "suggested", "theirs", "ours"] as Filter[]).map((f) => (
                 <button key={f} type="button" role="radio" aria-checked={filter === f} className={`chip ${filter === f ? "on" : ""}`} onClick={() => setFilter(f)}>
-                  {f === "suggested" ? "Top 3" : f === "theirs" ? "Their pools" : f === "ours" ? "Our pools" : "All"}
+                  {f === "suggested" ? "Top 10" : f === "theirs" ? "Their pools" : f === "ours" ? "Our pools" : "All"}
                 </button>
               ))}
             </div>

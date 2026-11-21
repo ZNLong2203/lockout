@@ -11,7 +11,8 @@
     "test": "vitest run",
     "eval:copilot": "vite-node scripts/callrate.ts",
     "build:pages": "tsc -b && vite build --mode pages",
-    "train:copilot": "vite-node scripts/train-copilot.ts"
+    "train:copilot": "vite-node scripts/train-copilot.ts",
+    "export:features": "vite-node scripts/export-features.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "5.1.0",

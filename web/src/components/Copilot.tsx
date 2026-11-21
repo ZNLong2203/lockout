@@ -48,7 +48,7 @@ export function Copilot({ advice, calls, onApply, onHover, last, deltas }: Props
       </div>
       <div className="copilot-cards">
         <AnimatePresence mode="popLayout" initial={false}>
-          {advice.suggestions.map((s, i) => {
+          {advice.suggestions.slice(0, 3).map((s, i) => {
             return (
               <motion.button
                 layout
@@ -89,6 +89,28 @@ export function Copilot({ advice, calls, onApply, onHover, last, deltas }: Props
         </AnimatePresence>
         {advice.suggestions.length === 0 && <p className="muted">No pool or league data for this step.</p>}
       </div>
+      {advice.suggestions.length > 3 && (
+        <div className="shortlist-row" aria-label="Shortlist, ranks 4 to 10">
+          <span className="sl-k" title="Ranks 4-10. On the 80 most recent real series, the real choice was in the top 10 about 3 times in 4.">
+            Also in the top 10
+          </span>
+          {advice.suggestions.slice(3).map((s, i) => (
+            <button
+              key={s.champion}
+              type="button"
+              className="sl-chip"
+              title={`#${i + 4} ${s.title}: ${s.reason}`}
+              onClick={onApply ? () => onApply(s.champion) : undefined}
+              onMouseEnter={() => onHover?.(s.champion)}
+              onMouseLeave={() => onHover?.(null)}
+              disabled={!onApply}
+            >
+              <ChampIcon name={s.champion} size={24} />
+              <span>{s.champion}</span>
+            </button>
+          ))}
+        </div>
+      )}
       {last && <Last last={last} />}
     </div>
   );
@@ -99,9 +121,9 @@ function CallChip({ calls }: { calls: CallRate }) {
   return (
     <span
       className="call-chip"
-      title={`Steps already drafted where the real choice was in the top three, judged only on what was known before each step. Ours ${calls.ours.hits}/${calls.ours.total}, theirs ${calls.theirs.hits}/${calls.theirs.total}.`}
+      title={`Steps already drafted where the real choice was in the co-pilot's top 3 (and top 10), judged only on what was known before each step. Top 3: ours ${calls.ours.hits}/${calls.ours.total}, theirs ${calls.theirs.hits}/${calls.theirs.total}.`}
     >
-      Called <b>{calls.hits}</b>/{calls.total}
+      Called <b>{calls.hits}</b>/{calls.total} · top 10 <b>{calls.hits10}</b>
     </span>
   );
 }

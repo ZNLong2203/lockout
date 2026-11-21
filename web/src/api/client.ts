@@ -1,6 +1,6 @@
 import { DEMO_REPLAY_ID, demoReplay } from "../demo/replay";
 import { DEMO_TEAMS, demoEvidence, demoProfile, demoTendencies } from "../demo/scouting";
-import { DEMO_META, DEMO_SERIES, DEMO_SERIES_LIST, demoSeriesDraft } from "../demo/series";
+import { DEMO_META, DEMO_SERIES, DEMO_SERIES_LIST, DEMO_WIN_MODEL, demoSeriesDraft } from "../demo/series";
 import type { SeriesContext } from "../lib/draft";
 import { MOCK_BACKTEST, mockPlan } from "./fixtures";
 import type {
@@ -17,6 +17,7 @@ import type {
   TeamProfile,
   TeamSummary,
   TendencyScope,
+  WinModel,
 } from "./types";
 
 // Set VITE_API=live (and run `lockout serve`) to use the real API; otherwise the app runs on synthetic data.
@@ -100,3 +101,11 @@ export function fetchSeriesList(team: string, opponent = ""): Promise<SeriesSumm
 /** A real series' drafts plus the context as it was before game 1. */
 export const fetchSeriesDraft = (seriesId: string, ours = ""): Promise<SeriesDraft> =>
   isLive ? getJson<SeriesDraft>(`/api/series/${enc(seriesId)}/draft${ours ? `?ours=${enc(ours)}` : ""}`) : demo(demoSeriesDraft);
+
+/** The live-draft win model for a matchup, fitted on games before `before` (ISO). Null if unavailable. */
+export function fetchWinModel(team: string, opponent: string, before?: string): Promise<WinModel | null> {
+  if (!isLive) return Promise.resolve({ ...DEMO_WIN_MODEL, ours_id: team || "alpha", opponent_id: opponent || "bravo" });
+  const params = new URLSearchParams({ team, opponent });
+  if (before) params.set("before", before);
+  return getJson<WinModel>(`/api/draft/win-model?${params}`).catch(() => null);
+}

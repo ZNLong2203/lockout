@@ -6,6 +6,8 @@ import { ORDER, assignPicks, lockedBefore, nextStep, sideOf, usedIn, type GameDr
 import { ChampIcon, ROLE_SHORT, type ChampState } from "./ChampIcon";
 import { CompPanel } from "./CompPanel";
 import { Copilot } from "./Copilot";
+import { WinBar } from "./WinBar";
+import type { WinModel } from "../api/types";
 
 interface Props {
   ctx: SeriesContext;
@@ -20,6 +22,7 @@ interface Props {
   onUndo?: () => void;
   onClear?: () => void;
   onHover?: (champion: string | null) => void;
+  win?: { model: WinModel; timeline: number[]; deltas: Map<string, number> } | null;
 }
 
 const slotsOf = (side: Side, action: "ban" | "pick") => ORDER.map((o, i) => (o.side === side && o.action === action ? i : -1)).filter((i) => i >= 0);
@@ -80,7 +83,7 @@ function TeamColumn({ ctx, game, side, calls, meta }: { ctx: SeriesContext; game
 type Filter = "suggested" | "theirs" | "ours" | "all";
 const ROLES = ["all", "top", "jungle", "mid", "adc", "support"] as const;
 
-export function DraftBoard({ ctx, games, index, advice, calls, meta, last, onPick, onUndo, onClear, onHover }: Props) {
+export function DraftBoard({ ctx, games, index, advice, calls, meta, last, onPick, onUndo, onClear, onHover, win }: Props) {
   const catalog = useCatalog();
   const game = games[index] as GameDraft;
   const [query, setQuery] = useState("");
@@ -134,7 +137,8 @@ export function DraftBoard({ ctx, games, index, advice, calls, meta, last, onPic
               <>Draft complete</>
             )}
           </div>
-          <Copilot advice={advice} calls={calls} onApply={onPick && current ? onPick : undefined} onHover={onHover} last={last} />
+          {win && <WinBar model={win.model} timeline={win.timeline} ours={ctx.ours.name} opponent={ctx.opponent.name} />}
+          <Copilot advice={advice} calls={calls} onApply={onPick && current ? onPick : undefined} onHover={onHover} last={last} deltas={win?.deltas} />
           <div className="picker-tools">
             <label className="champ-search">
               <Search size={15} aria-hidden />

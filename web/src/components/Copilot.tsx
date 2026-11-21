@@ -19,12 +19,14 @@ interface Props {
   /** Clicking a card enters that champion (live drafting only). */
   onApply?: (champion: string) => void;
   onHover?: (champion: string | null) => void;
+  /** Change in our win chance (0..1 points) if this champion were picked now, by champion. */
+  deltas?: Map<string, number>;
   /** In a replay: the step just revealed, and whether the co-pilot had it in its top three. */
   last?: { champion: string; hit: boolean; label: string } | null;
 }
 
 /** The co-pilot strip: three best moves for us, or the three likeliest moves of the opponent, each with why and n. */
-export function Copilot({ advice, calls, onApply, onHover, last }: Props) {
+export function Copilot({ advice, calls, onApply, onHover, last, deltas }: Props) {
   if (!advice) {
     return (
       <div className="copilot done">
@@ -72,6 +74,7 @@ export function Copilot({ advice, calls, onApply, onHover, last }: Props) {
                   </b>
                   <span className="sugg-reason">{s.reason}</span>
                   <span className="sugg-foot">
+                    {deltas?.has(s.champion) && <WinDelta d={deltas.get(s.champion) as number} />}
                     <span className="n">{s.evidence}</span>
                     {s.tags.slice(0, 2).map((t) => (
                       <span key={t} className={`tag t-${t}`}>
@@ -110,5 +113,16 @@ function Last({ last }: { last: { champion: string; hit: boolean; label: string 
       {last.label}: <ChampIcon name={last.champion} size={22} /> <b>{last.champion}</b>
       <span className="muted">{last.hit ? "in the top three" : "not in the top three"}</span>
     </div>
+  );
+}
+
+function WinDelta({ d }: { d: number }) {
+  const pts = d * 100;
+  if (Math.abs(pts) < 0.05) return null;
+  return (
+    <span className={`win-delta ${pts > 0 ? "up" : "down"}`} title="Change in our win chance, in percentage points, if this is picked now (model)">
+      {pts > 0 ? "+" : ""}
+      {pts.toFixed(1)} pts
+    </span>
   );
 }

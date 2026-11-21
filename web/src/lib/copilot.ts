@@ -49,7 +49,10 @@ export interface Options {
   meta?: Meta;
   info?: (champion: string) => ChampInfo | undefined;
   k?: number;
-  weights?: Partial<typeof WEIGHTS>;
+  /** Override the learned weights per step type ("ban-us", "pick-them", ...): used by training. */
+  weights?: Record<string, number[]>;
+  /** Receives every candidate's features before ranking: used by training. */
+  trace?: (t: Trace) => void;
 }
 
 const ROLE_WORD: Record<string, string> = { top: "top", jungle: "jungler", mid: "mid", adc: "ADC", support: "support", unknown: "player" };
@@ -60,86 +63,71 @@ function counts(list: string[]): Map<string, number> {
   return m;
 }
 
-function best(cands: Suggestion[], k: number): Suggestion[] {
-  const byChamp = new Map<string, Suggestion>();
-  for (const c of cands) {
-    const cur = byChamp.get(c.champion);
-    if (!cur || c.score > cur.score) byChamp.set(c.champion, c);
-  }
-  return [...byChamp.values()].sort((a, b) => b.score - a.score || a.champion.localeCompare(b.champion)).slice(0, k);
-}
-
 const open = (states: RoleState[], assigned: Map<string, string>) => states.filter((s) => !assigned.has(s.player.player_id));
 
-/** Blend weights, tuned on real series with `callRate` (see docs/methodology.md). */
-export const WEIGHTS = {
-  poolPick: 0.2, // a player's own pool vs the league's picks in that role
-  banMeta: 1.3, // league ban rate
-  banThreat: 0.45, // share of an open player's remaining comfort
-  banHabit: 0.35, // the team's own recent bans
-  deny: 0.15, // prescriptive extras for our picks
-  comp: 0.05,
-  sumPick: 0, // 1 = a champion's chance sums over every open player (flex picks), 0 = best single player
+/** The features of one candidate champion at one step, in this order (see docs/methodology.md). */
+export const FEATURES = [
+  "pool", // max share of an open player's remaining comfort (picks: the acting team; bans: the target team)
+  "poolGames", // log(1 + games) that player has on it
+  "roleMeta", // max share of the league's recent picks in an open player's role
+  "banRate", // league ban rate
+  "pickRate", // league pick rate
+  "theirPicks", // share of the opponent's last games where they picked it
+  "theirBans", // share of the opponent's last games where they banned it
+  "other", // picks: max share of a rival's remaining comfort (deny); bans: of the acting team's own comfort
+  "fragile", // 1 - pool left, for the player it matters most to
+  "winEdge", // shrunk league win rate - 0.5
+  "flex", // open players who have it in their pool / 5
+] as const;
+
+/**
+ * Softmax ranking weights per step type, learned on the 80 most recent real series with
+ * `npm run train:copilot` and checked once on 58 older ones (docs/methodology.md). They are 44 aggregate
+ * numbers, not data.
+ */
+export const LEARNED: Record<string, number[]> = {
+  "ban-them": [0.677, 0.398, 1.118, 3.852, 0.708, 0.215, 2.077, -0.266, 0.657, 0.238, 0.582],
+  "ban-us": [0.792, 0.363, 1.556, 4.324, 0.998, 1.42, 1.061, -0.136, 0.46, 0.183, 0.424],
+  "pick-them": [0.457, 0.498, 2.468, 2.557, 1.478, 1.393, 0.753, -0.202, 0.762, 0.305, 0.547],
+  "pick-us": [0.728, 0.392, 2.502, 1.971, 1.887, 1.03, 1.015, 0.045, 0.952, 0.447, 0.699],
 };
 
 interface MetaIndex {
-  rolePick: Map<string, Map<string, number>>; // role -> champion -> share of that role's picks
-  banRate: Map<string, number>;
-  presence: Map<string, number>;
+  rolePick: Map<string, Map<string, number>>; // role -> champion -> picks in that role
 }
 
 const metaCache = new WeakMap<object, MetaIndex>();
 
 function indexMeta(meta: Meta | undefined): MetaIndex {
-  const empty: MetaIndex = { rolePick: new Map(), banRate: new Map(), presence: new Map() };
-  if (!meta) return empty;
+  const out: MetaIndex = { rolePick: new Map() };
+  if (!meta) return out;
   const cached = metaCache.get(meta);
   if (cached) return cached;
-  const out = empty;
-  const totals = new Map<string, number>();
-  meta.forEach((c) => {
-    out.banRate.set(c.champion, c.games ? c.bans / c.games : 0);
-    out.presence.set(c.champion, c.presence);
+  meta.forEach((c) =>
     Object.entries(c.roles).forEach(([role, share]) => {
-      const n = c.picks * share;
-      totals.set(role, (totals.get(role) ?? 0) + n);
       if (!out.rolePick.has(role)) out.rolePick.set(role, new Map());
-      out.rolePick.get(role)?.set(c.champion, n);
-    });
-  });
-  out.rolePick.forEach((m, role) => m.forEach((n, c) => m.set(c, n / (totals.get(role) || 1))));
+      out.rolePick.get(role)?.set(c.champion, c.picks * share);
+    }),
+  );
   metaCache.set(meta, out);
   return out;
 }
 
 /** Normalise a champion -> weight map over the champions still available. */
-function norm(m: Map<string, number>, unavailable: Set<string>): Map<string, number> {
+function norm(m: Map<string, number> | undefined, unavailable: Set<string>): Map<string, number> {
+  const out = new Map<string, number>();
+  if (!m) return out;
   let total = 0;
   m.forEach((v, c) => !unavailable.has(c) && (total += v));
-  const out = new Map<string, number>();
   if (total > 0) m.forEach((v, c) => !unavailable.has(c) && out.set(c, v / total));
   return out;
 }
 
-/** Where a player's next pick comes from: their remaining pool blended with the league's picks in their role. */
-function pickDist(s: RoleState, mi: MetaIndex, unavailable: Set<string>, w: number): Map<string, { p: number; pool: number; league: number }> {
-  const pool = new Map(s.available.map((e) => [e.champion, s.mass > 0 ? e.share / s.mass : 0]));
-  const league = norm(mi.rolePick.get(s.player.role) ?? new Map(), unavailable);
-  const wp = league.size ? (s.available.length ? w : 0) : 1;
-  const out = new Map<string, { p: number; pool: number; league: number }>();
-  new Set([...pool.keys(), ...league.keys()]).forEach((c) => {
-    const a = pool.get(c) ?? 0;
-    const b = league.get(c) ?? 0;
-    out.set(c, { p: wp * a + (1 - wp) * b, pool: a, league: b });
-  });
-  return out;
+export interface Trace {
+  key: string;
+  champions: string[];
+  X: number[][];
 }
-
-const leagueLine = (c: string, meta: Meta | undefined, role: string) => {
-  const m = meta?.get(c);
-  if (!m) return "";
-  return `league: ${pct(m.roles[role] ? (m.picks * (m.roles[role] ?? 0)) / Math.max(m.games, 1) : m.picks / Math.max(m.games, 1))} of ${role} games`;
-};
 
 /** Advice for the next empty step of `games[index]`; null when the draft is complete. */
 export function advise(ctx: SeriesContext, games: GameDraft[], index: number, opts: Options = {}): StepAdvice | null {
@@ -149,12 +137,14 @@ export function advise(ctx: SeriesContext, games: GameDraft[], index: number, op
   if (step < 0) return null;
   const o = ORDER[step] as (typeof ORDER)[number];
   const k = opts.k ?? 3;
-  const W = { ...WEIGHTS, ...opts.weights };
-  const mi = indexMeta(opts.meta);
   const usSide = sideOf(game, "us");
   const themSide = sideOf(game, "them");
   const ours = o.side === usSide;
-  const roleOf = (c: string) => opts.meta?.get(c)?.role;
+  const key = `${o.action}-${ours ? "us" : "them"}`;
+  const w = opts.weights?.[key] ?? (LEARNED[key] as number[]);
+  const meta = opts.meta;
+  const mi = indexMeta(meta);
+  const roleOf = (c: string) => meta?.get(c)?.role;
   const unavailable = new Set([...lockedBefore(games, index), ...usedIn(game)]);
   const ourPicks = draftList(game, usSide, "pick").filter((c): c is string => !!c);
   const theirPicks = draftList(game, themSide, "pick").filter((c): c is string => !!c);
@@ -164,121 +154,112 @@ export function advise(ctx: SeriesContext, games: GameDraft[], index: number, op
   const R = Math.max(recent.length, 1);
   const recentPicks = counts(recent.flatMap((g) => g.picks.map((p) => p.champion)));
   const recentBans = counts(recent.flatMap((g) => g.bans));
-  const cands: Suggestion[] = [];
-  const acting = ours ? usOpen : themOpen; // whose picks we model
-  const target = ours ? themOpen : usOpen; // whose comfort a ban hits
+  const acting = ours ? usOpen : themOpen;
+  const target = ours ? themOpen : usOpen;
+  const relevant = o.action === "pick" ? acting : target; // whose pool the move is about
+  const other = o.action === "pick" ? target : acting;
+  const roleDist = new Map(relevant.map((s) => [s.player.role, norm(mi.rolePick.get(s.player.role), unavailable)]));
+  const share = (s: RoleState, c: string) => (s.mass > 0 ? (s.available.find((e) => e.champion === c)?.share ?? 0) / s.mass : 0);
 
-  if (o.action === "ban") {
-    // threat: the most a ban takes from any open player of the other team
-    const threat = new Map<string, { bite: number; s: RoleState; games: number }>();
-    for (const s of target) {
-      if (s.mass <= 0) continue;
-      for (const e of s.available) {
-        const bite = (e.share / s.mass) * (1.5 - s.mass);
-        if (bite > (threat.get(e.champion)?.bite ?? 0)) threat.set(e.champion, { bite, s, games: e.games });
-      }
+  const names = new Set<string>([...(meta ? [...meta.keys()] : []), ...[...usOpen, ...themOpen].flatMap((s) => s.available.map((e) => e.champion))]);
+  const champions = [...names].filter((c) => !unavailable.has(c) && c !== "—");
+  const X: number[][] = [];
+  const why: { sb?: RoleState; sr?: RoleState; rival?: RoleState; games: number }[] = [];
+  for (const c of champions) {
+    let f0 = 0;
+    let sb: RoleState | undefined;
+    for (const s of relevant) {
+      const v = share(s, c);
+      if (v > f0) [f0, sb] = [v, s];
     }
-    const banMeta = norm(mi.banRate, unavailable);
-    // the opponent's own habits only inform predictions of the opponent
-    const habit = ours ? new Map<string, number>() : norm(recentBans, unavailable);
-    const names = new Set([...threat.keys(), ...[...banMeta.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25).map(([c]) => c), ...habit.keys()]);
-    for (const c of names) {
-      if (unavailable.has(c)) continue;
-      const t = threat.get(c);
-      const lm = banMeta.get(c) ?? 0;
-      const h = habit.get(c) ?? 0;
-      const parts = [W.banThreat * (t?.bite ?? 0), W.banMeta * lm * 4, W.banHabit * h * 3];
-      const score = parts[0]! + parts[1]! + parts[2]!;
-      const lead = parts.indexOf(Math.max(...parts));
-      const m = opts.meta?.get(c);
-      const reasonThreat = t ? `${pct(t.bite / (1.5 - t.s.mass))} of what ${ours ? "their" : "our"} ${ROLE_WORD[t.s.player.role]} ${t.s.player.name} has left` : "";
-      const reasonMeta = m ? `banned in ${pct(m.bans / Math.max(m.games, 1))} of league games` : "";
-      const reasonHabit = recentBans.get(c) ? `they banned it ${recentBans.get(c)}/${R} recently` : "";
-      const reasons = (lead === 0 ? [reasonThreat, reasonMeta, reasonHabit] : lead === 1 ? [reasonMeta, reasonThreat, reasonHabit] : [reasonHabit, reasonThreat, reasonMeta]).filter(Boolean);
-      const tags: Suggestion["tags"] = [];
-      if (t && t.s.status !== "ok") tags.push("fragile");
-      if (h > 0) tags.push("habit");
-      cands.push({
-        champion: c,
-        score,
-        title: ours ? `Ban ${c}` : `They may ban ${c}`,
-        reason: reasons.slice(0, 2).join(" · "),
-        evidence: lead === 0 && t ? `n = ${t.games} games by ${t.s.player.name}` : m ? `n = ${m.games} league games` : `n = ${R} games`,
-        player: t?.s.player.name,
-        role: t?.s.player.role,
-        tags,
-      });
+    let f2 = 0;
+    let sr: RoleState | undefined;
+    for (const s of relevant) {
+      const v = roleDist.get(s.player.role)?.get(c) ?? 0;
+      if (v > f2) [f2, sr] = [v, s];
     }
-  } else {
-    const comp = ours ? composition(ourPicks, opts.info ?? (() => undefined)) : null;
-    for (const s of acting) {
-      const dist = pickDist(s, mi, unavailable, W.poolPick);
-      const top = [...dist.entries()].sort((a, b) => b[1].p - a[1].p).slice(0, 8);
-      for (const [c, d] of top) {
-        const tags: Suggestion["tags"] = [];
-        const bits: string[] = [];
-        let score = d.p;
-        const entry = s.available.find((e) => e.champion === c);
-        if (d.pool > 0) {
-          tags.push("comfort");
-          bits.push(ours ? `${pct(d.pool)} of ${s.player.name}'s comfort left` : `${s.player.name}'s ${pct(d.pool)} of what's left`);
-        } else {
-          bits.push(leagueLine(c, opts.meta, s.player.role) || "league pick");
-        }
-        if (ours) {
-          const rivals = target
-            .map((t) => ({ t, bite: t.mass > 0 ? (t.available.find((e) => e.champion === c)?.share ?? 0) / t.mass : 0 }))
-            .sort((a, b) => b.bite - a.bite);
-          const rival = rivals[0];
-          if (rival && rival.bite > 0.05) {
-            tags.push("deny");
-            bits.push(rival.bite >= 0.9 ? `takes ${rival.t.player.name}'s last comfort pick` : `takes ${pct(rival.bite)} of what ${rival.t.player.name} has left`);
-            score += W.deny * rival.bite;
-          }
-          const fit = comp ? fills(comp, opts.info?.(c), c) : null;
-          if (fit) {
-            tags.push("comp");
-            bits.push(fit);
-            score += W.comp;
-          }
-          if (recentBans.get(c)) tags.push("ban-risk");
-        } else if (recentPicks.get(c)) {
-          tags.push("habit");
-          bits.push(`${recentPicks.get(c)} of their last ${R}`);
-          score += 0.03 * (recentPicks.get(c) ?? 0);
-        }
-        cands.push({
-          champion: c,
-          score,
-          title: ours ? `Pick ${c}` : `Likely ${c}`,
-          reason: bits.slice(0, 2).join(" · "),
-          evidence: entry ? `n = ${entry.games} games by ${s.player.name}` : `n = ${opts.meta?.get(c)?.picks ?? 0} league picks`,
-          player: s.player.name,
-          role: s.player.role,
-          tags,
-        });
-      }
+    let f7 = 0;
+    let rival: RoleState | undefined;
+    for (const s of other) {
+      const v = share(s, c);
+      if (v > f7) [f7, rival] = [v, s];
     }
+    const m = meta?.get(c);
+    const games = sb?.available.find((e) => e.champion === c)?.games ?? 0;
+    X.push([
+      f0,
+      Math.log1p(games),
+      f2,
+      m && m.games ? m.bans / m.games : 0,
+      m && m.games ? m.picks / m.games : 0,
+      (recentPicks.get(c) ?? 0) / R,
+      (recentBans.get(c) ?? 0) / R,
+      f7,
+      sb ? 1 - sb.mass : 0,
+      m ? (m.wins + 10) / (m.picks + 20) - 0.5 : 0,
+      relevant.filter((s) => s.available.some((e) => e.champion === c)).length / 5,
+    ]);
+    why.push({ sb, sr, rival, games });
   }
-  return {
-    step,
-    side: o.side,
-    action: o.action,
-    ours,
-    team: ours ? ctx.ours.name : ctx.opponent.name,
-    suggestions: best(o.action === "pick" && W.sumPick ? sumFlex(cands) : cands, k).filter((c) => !unavailable.has(c.champion)),
-  };
-}
+  opts.trace?.({ key, champions, X });
 
-/** A champion several open players could take is likelier: add the extra players' chances to its best entry. */
-function sumFlex(cands: Suggestion[]): Suggestion[] {
-  const by = new Map<string, Suggestion[]>();
-  cands.forEach((c) => by.set(c.champion, [...(by.get(c.champion) ?? []), c]));
-  return [...by.values()].map((list) => {
-    const sorted = [...list].sort((a, b) => b.score - a.score);
-    const top = sorted[0] as Suggestion;
-    return { ...top, score: sorted.reduce((s, c) => s + c.score, 0) };
-  });
+  const scores = X.map((x) => x.reduce((acc, v, i) => acc + v * (w[i] ?? 0), 0));
+  const order = scores.map((_, i) => i).sort((a, b) => (scores[b] as number) - (scores[a] as number) || (champions[a] as string).localeCompare(champions[b] as string));
+  const comp = ours && o.action === "pick" ? composition(ourPicks, opts.info ?? (() => undefined)) : null;
+  const suggestions = order.slice(0, k).map((i) => explain(champions[i] as string, X[i] as number[], w, why[i] as (typeof why)[number], scores[i] as number));
+
+  function explain(c: string, x: number[], wt: number[], y: (typeof why)[number], score: number): Suggestion {
+    const m = meta?.get(c);
+    const contrib = x.map((v, i) => ({ i, v: v * (wt[i] ?? 0) })).filter((e) => e.v > 0).sort((a, b) => b.v - a.v);
+    const bits: string[] = [];
+    const tags: Suggestion["tags"] = [];
+    const theirs = o.action === "pick" ? !ours : ours; // the relevant players belong to the opponent
+    for (const { i } of contrib) {
+      if (bits.length >= 2) break;
+      if ((i === 0 || i === 1) && y.sb && !bits.some((b) => b.includes(y.sb?.player.name ?? "\u0000"))) {
+        bits.push(
+          o.action === "pick"
+            ? `${pct(x[0] ?? 0)} of ${y.sb.player.name}'s comfort left`
+            : `${pct(x[0] ?? 0)} of what ${theirs ? "their" : "our"} ${ROLE_WORD[y.sb.player.role]} ${y.sb.player.name} has left`,
+        );
+      } else if (i === 2 && y.sr) bits.push(`league: ${pct(x[2] ?? 0)} of recent ${ROLE_WORD[y.sr.player.role]} picks`);
+      else if (i === 3 && m) bits.push(`banned in ${pct(x[3] ?? 0)} of league games`);
+      else if (i === 4 && m) bits.push(`picked in ${pct(x[4] ?? 0)} of league games`);
+      else if (i === 5) bits.push(`picked in ${recentPicks.get(c)} of their last ${R}`);
+      else if (i === 6) bits.push(`they banned it ${recentBans.get(c)}/${R} recently`);
+      else if (i === 7 && y.rival && o.action === "pick")
+        bits.push((x[7] ?? 0) >= 0.9 ? `takes ${y.rival.player.name}'s last comfort pick` : `takes ${pct(x[7] ?? 0)} of what ${y.rival.player.name} has left`);
+      else if (i === 8 && y.sb) bits.push(`${y.sb.player.name}'s pool is down to ${pct(y.sb.mass)}`);
+      else if (i === 9 && m) bits.push(`${pct((m.wins + 10) / (m.picks + 20))} league win rate`);
+      else if (i === 10 && (x[10] ?? 0) >= 0.4) bits.push(`flex: ${Math.round((x[10] ?? 0) * 5)} players play it`);
+    }
+    if ((x[0] ?? 0) > 0) {
+      if (o.action === "pick") tags.push("comfort");
+      else if (y.sb && y.sb.status !== "ok") tags.push("fragile");
+    }
+    if (o.action === "pick" && ours && (x[7] ?? 0) > 0.05) tags.push("deny");
+    if ((x[5] ?? 0) > 0 || (x[6] ?? 0) > 0) tags.push(ours && o.action === "pick" ? "ban-risk" : "habit");
+    const fit = comp ? fills(comp, opts.info?.(c), c) : null;
+    if (fit) {
+      tags.push("comp");
+      if (bits.length < 2) bits.push(fit);
+    }
+    const lead = contrib[0]?.i;
+    const player = y.sb ?? y.sr;
+    return {
+      champion: c,
+      score,
+      title: o.action === "ban" ? (ours ? `Ban ${c}` : `They may ban ${c}`) : ours ? `Pick ${c}` : `Likely ${c}`,
+      reason: bits.join(" · ") || "league pattern",
+      evidence:
+        (lead === 0 || lead === 1 || lead === 8) && y.sb ? `n = ${y.games} games by ${y.sb.player.name}` : m ? `n = ${m.games} league games` : `n = ${R} games`,
+      player: player?.player.name,
+      role: player?.player.role,
+      tags,
+    };
+  }
+
+  return { step, side: o.side, action: o.action, ours, team: ours ? ctx.ours.name : ctx.opponent.name, suggestions };
 }
 
 export interface CallRate {

@@ -1,8 +1,9 @@
 import { ArrowLeftRight, ChevronDown, History } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { fetchBacktest, fetchChampions, fetchContext, isLive } from "../api/client";
-import type { ChampionStats, DraftBacktest, SeriesDraft, TeamSummary } from "../api/types";
+import { fetchBacktest, fetchChampions, fetchContext, fetchWinModel, isLive } from "../api/client";
+import type { ChampionStats, DraftBacktest, SeriesDraft, TeamSummary, WinModel } from "../api/types";
 import { buildBudget } from "../lib/budget";
+import { winChance, winTimeline } from "../lib/winprob";
 import { advise, callRate, type Meta } from "../lib/copilot";
 import { infoOf, useCatalog } from "../lib/ddragon";
 import {
@@ -52,6 +53,7 @@ export function DraftRoom({ teams, matchup, onMatchup }: Props) {
   const [hover, setHover] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
   const [replay, setReplay] = useState<ReplayState | null>(null);
+  const [winModel, setWinModel] = useState<WinModel | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -77,6 +79,19 @@ export function DraftRoom({ teams, matchup, onMatchup }: Props) {
     fetchBacktest().then(setBacktest).catch(() => setBacktest(null));
     fetchChampions().then((rows) => setLiveMeta(toMeta(rows)));
   }, []);
+
+  // the win model of the matchup on screen; a replay uses one fitted only on games before the series
+  const replaySeries = replay?.draft.series;
+  useEffect(() => {
+    let alive = true;
+    setWinModel(null);
+    const [a, b] = replaySeries ? replaySeries.teams.map((t) => t.team_id) : [ctx?.ours.team_id, ctx?.opponent.team_id];
+    if (!a || !b) return;
+    fetchWinModel(a, b, replaySeries ? `${replaySeries.date}T00:00:00Z` : undefined).then((m) => alive && setWinModel(m));
+    return () => {
+      alive = false;
+    };
+  }, [ctx?.ours.team_id, ctx?.opponent.team_id, replaySeries]);
 
   // autoplay of a real-series replay
   useEffect(() => {
@@ -123,6 +138,17 @@ export function DraftRoom({ teams, matchup, onMatchup }: Props) {
     const calls = callRate(c, gs, i, opts);
     return { game, locked, used, bannedNow, them, us, jungleOptions, theirJungle, jgPlayer, advice, calls };
   }, [shown, catalog]);
+
+  const win = useMemo(() => {
+    if (!winModel || !shown || !view) return null;
+    const { ctx: c, games: gs, index: i, meta } = shown;
+    const now = winChance(winModel, c, gs, i, meta);
+    const deltas = new Map<string, number>();
+    if (view.advice?.action === "pick") {
+      for (const sg of view.advice.suggestions) deltas.set(sg.champion, winChance(winModel, c, gs, i, meta, { side: view.advice.side, champion: sg.champion }) - now);
+    }
+    return { model: winModel, timeline: winTimeline(winModel, c, gs, i, meta), deltas };
+  }, [winModel, shown, view]);
 
   const budget = useMemo(() => (shown ? buildBudget(shown.ctx, shown.games, shown.index, shown.meta, hover) : null), [shown, hover]);
 
@@ -236,6 +262,7 @@ export function DraftRoom({ teams, matchup, onMatchup }: Props) {
           onUndo={live ? onUndo : undefined}
           onClear={live ? () => update(emptyDraft(game.number, game.ourSide)) : undefined}
           onHover={setHover}
+          win={win}
         />
 
         <BudgetCard ctx={s} budget={budget} games={Array.from({ length: Math.max(s.format, shown.games.length) }, (_, i) => i + 1)} current={game.number} />

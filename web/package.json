@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "eval:copilot": "vite-node scripts/callrate.ts",
-    "build:pages": "tsc -b && vite build --mode pages"
+    "build:pages": "tsc -b && vite build --mode pages",
+    "train:copilot": "vite-node scripts/train-copilot.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "5.1.0",

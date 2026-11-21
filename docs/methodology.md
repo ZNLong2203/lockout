@@ -97,33 +97,71 @@ We present pool stress as a planning aid for choosing what to ban and what to sa
 At each of the 20 steps the draft room shows three moves: the best ones for us on our turn, the likeliest ones for
 the opponent on theirs. Every card says why in one line and shows the sample it rests on.
 
-- **Picks** blend two distributions for each player whose role is still open: their own remaining pool (weight
-  0.2) and the league's picks in that role over the last 90 days (weight 0.8). For our picks, small bonuses favour a
-  champion that is also in an opponent's pool (deny) or fixes the composition (for example, magic damage after three
-  physical picks).
-- **Bans** add up three signals: the league ban rate, how much of an open player's remaining comfort the ban
-  removes (more when that pool is already thin), and, when predicting the opponent, their own recent bans.
-- **No look-ahead.** The real-series replay and the evaluation use a context the API builds from data *before*
-  game 1 of the series: lineups from game 1, pools as of its start, the opponent's earlier games, and league meta of
-  the 90 days before it.
+**Model.** Every champion still available is a candidate with 11 features:
+- its share of an open player's remaining comfort pool, and that player's games on it;
+- its share of the league's recent picks in an open player's role;
+- league ban and pick rates, and the shrunk league win rate;
+- the opponent's last games (picked it, banned it);
+- the other team's comfort it would take (deny);
+- how thin the relevant player's pool already is;
+- how many open players have it (flex).
 
-**How often is the real choice in the top three?** (`cd web && npm run eval:copilot`, against the local API)
+A softmax (conditional logit) over the candidates ranks them, with one weight vector per step type (our bans,
+our picks, their bans, their picks). The weights are learned with `npm run train:copilot` and are 44 numbers in
+`web/src/lib/copilot.ts`. The reason on each card is built from the features that contributed most to its score,
+so the explanation matches the ranking.
 
-| Set | Series | Steps | Co-pilot top 3 | Baseline: 3 champions with the highest league presence |
-|---|---|---|---|---|
-| Tuning (Apr-Oct 2026) | 80 | 4,500 | 31.5 % | 25.6 % |
-| **Held out (Jan-Apr 2026)** | 58 | 3,179 | **32.1 %** | 25.8 % |
+**No look-ahead.** The real-series replay and the evaluation use a context the API builds from data *before*
+game 1 of the series: lineups from game 1, pools as of its start, the opponent's earlier games, and league meta of
+the 90 days before it.
 
-The weights were picked on the most recent 80 series and then checked once on 58 older ones. Choosing three out
-of about 170 champions at random would score about 2 %. By step type on the held-out set: bans 31-34 %, picks
-31-33 %. Two findings shaped the model. First, the league's role meta predicts picks better than a player's own
-pool: under Fearless, pools run out and new champions appear (section above). Second, a recent 90-day meta window
-beat windows stretched to at least 100 or 300 games (30.5 % and 28.2 % held out), because the extra games come
-from older patches.
+**How often is the real choice in the top three?** Trained on the 80 most recent series (Apr-Oct 2026), checked
+once on the 58 older ones (Jan-Apr 2026). Reproduce with `cd web && npm run eval:copilot` against the local API.
+
+| Held-out set: 58 series, 3,179 steps | Top 3 contains the real choice |
+|---|---|
+| **Learned ranker (current)** | **34.1 %** |
+| First version: hand-tuned blend of pool and role meta | 32.1 % |
+| Pool only | 24.8 % (tuning set) |
+| Baseline: the 3 available champions with the highest league presence | 25.8 % |
+| Chance (3 of about 170) | about 2 % |
+
+By step type, held out: bans 33.4-36.7 %, picks 33.0-33.5 %. Three findings shaped the model:
+- The league's role meta predicts picks better than a player's own pool. Under Fearless, pools run out and new
+  champions appear (section above).
+- A recent 90-day meta window beat windows stretched to at least 100 or 300 games (held out 30.5 % and 28.2 %
+  with the first model), because the extra games come from older patches.
+- When we ban, the opponent's recent picks matter (learned weight 1.42); for every step type, the league ban rate
+  is the strongest single signal for bans.
 
 This is a *prediction* metric. Our own recommendations are not meant to copy what teams did, so the same score is
 only a sanity check for them. Engage and the early/late power curve in the composition check come from a short
 editorial list; damage split, frontline and range come from Riot's Data Dragon classification.
+
+### Live draft win chance
+
+The draft room shows our chance to win, updated after every pick, and how each suggested pick would move it.
+It is a logistic regression (`src/lockout/draft/winmodel.py`, `lockout winmodel`) on four features, blue minus
+red, each defined for a partial draft:
+- team Elo (K = 32, pulled halfway back to 1500 after a break of more than 30 days);
+- pool comfort of the picks so far;
+- shrunk league win rate of the picks so far (last 90 days);
+- the comfort pool left at the start of the game (Fearless).
+All of them use earlier games only. The settings were chosen on a validation slice (games at 60-75 % of the
+timeline), then scored once on the latest 25 %:
+
+| Latest 430 games (trained on the 1,288 before) | Accuracy | Log loss | AUC |
+|---|---|---|---|
+| **Elo + draft (current)** | 66.7 % | **0.639** | **0.688** |
+| Elo alone (same settings) | 67.7 % | 0.641 | 0.681 |
+| First version (K = 24, no off-season pull) | 66.7 % | 0.651 | 0.679 |
+| Always blue | 51.8 % | 0.690 | - |
+
+Team strength sets the starting point and the draft moves it by a few points: draft features improve calibration
+and ranking (log loss, AUC) but not accuracy, which is close to what pre-game predictions of pro games usually
+reach. Per-player Elo (to follow roster changes) helped on the test set but not on validation, so it was left out.
+A replay uses a model fitted only on games before the series. The bar is labelled "model" and its tooltip carries
+these numbers.
 
 ### Fearless budget
 

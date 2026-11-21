@@ -1,7 +1,7 @@
 // SYNTHETIC demo series. Team names, players, pools and results are invented; nothing comes from the licensed
 // GRID data. The only real figures are the league-wide aggregates in `league_top3_share_by_game` (from the backtest).
 import type { GameDraft, PastGame, PlayerPool, SeriesContext, TeamCtx } from "../lib/draft";
-import type { ChampionStats, Role, SeriesDraft, SeriesSummary } from "../api/types";
+import type { ChampionStats, Role, SeriesDraft, SeriesSummary, WinModel } from "../api/types";
 
 type Raw = [string, Role, number, [string, number][]];
 
@@ -170,3 +170,25 @@ export function demoSeriesDraft(): SeriesDraft {
     notes: ["Synthetic demo series: teams, players and drafts are invented."],
   };
 }
+
+/** SYNTHETIC win model for the demo: invented ratings and coefficients of a realistic size. */
+export const DEMO_WIN_MODEL: WinModel = {
+  features: ["elo", "comfort", "champ", "stress"],
+  mean: [0, 0, 0, 0],
+  scale: [0.25, 0.12, 0.02, 0.15],
+  coef: [0.75, 0.1, 0.07, -0.05],
+  intercept: 0.12,
+  n_train: 400,
+  ours_id: "alpha",
+  opponent_id: "bravo",
+  ours_elo: 1540,
+  opponent_elo: 1515,
+  meta_days: 90,
+  prior: 10,
+  pool_top: 8,
+  evaluation: {
+    n_train: 300, n_test: 100, accuracy: 0.66, log_loss: 0.64, auc: 0.69,
+    elo_accuracy: 0.65, elo_log_loss: 0.645, elo_auc: 0.68, blue_rate: 0.52, blue_log_loss: 0.69,
+  },
+  notes: ["Synthetic demo model: invented ratings and coefficients."],
+};

@@ -182,6 +182,28 @@ def tendencies(
 
 
 @app.command()
+def winmodel() -> None:
+    """Score the live-draft win model on later games (time split) and print aggregates only."""
+    from lockout.draft.analysis import load_picks
+    from lockout.draft.winmodel import FEATURES, build_rows, evaluate, fit
+
+    cache = load_settings().cache_dir / "lol"
+    rows, _ = build_rows(cache, load_picks(cache))
+    e = evaluate(rows)
+    typer.echo(f"games: train {e.n_train}, test {e.n_test} (later games)")
+    typer.echo(
+        f"Elo + draft : accuracy {e.accuracy:.1%}, log loss {e.log_loss:.4f}, AUC {e.auc:.3f}"
+    )
+    typer.echo(
+        f"Elo only    : accuracy {e.elo_accuracy:.1%}, log loss {e.elo_log_loss:.4f}, AUC {e.elo_auc:.3f}"
+    )
+    typer.echo(f"blue side   : {e.blue_rate:.1%} of training games, log loss {e.blue_log_loss:.4f}")
+    m = fit(rows)
+    coefs = ", ".join(f"{f} {c:+.3f}" for f, c in zip(FEATURES, m.coef, strict=True))
+    typer.echo(f"coefficients (standardised): {coefs}; intercept {m.intercept:+.3f}")
+
+
+@app.command()
 def logos() -> None:
     """Look up team logos on Leaguepedia and cache their URLs (no images are stored)."""
     from lockout.api.queries import CacheNotReadyError, Repository

@@ -444,3 +444,41 @@ class SeriesDraft(BaseModel):
     games: list[ReplayGameDraft]
     meta: list[ChampionStats] = Field(description="League meta of the 90 days before game 1")
     notes: list[str]
+
+
+# --- Live draft win probability ---------------------------------------------------------------------------
+
+
+class WinModelEvaluation(BaseModel):
+    """Trained on the earlier 75 % of games, scored on the later 25 %."""
+
+    n_train: int
+    n_test: int
+    accuracy: float
+    log_loss: float
+    auc: float
+    elo_accuracy: float = Field(description="The same split with Elo alone")
+    elo_log_loss: float
+    elo_auc: float
+    blue_rate: float = Field(description="Blue side's win rate in the training games")
+    blue_log_loss: float
+
+
+class WinModel(BaseModel):
+    """A logistic model of P(blue wins) from the draft state; see lockout.draft.winmodel for the features."""
+
+    features: list[str]
+    mean: list[float]
+    scale: list[float]
+    coef: list[float] = Field(description="On standardised features: (x - mean) / scale")
+    intercept: float = Field(description="Blue-side advantage, in logits")
+    n_train: int = Field(description="Games before `before` the served model was fitted on")
+    ours_id: str
+    opponent_id: str
+    ours_elo: float
+    opponent_elo: float
+    meta_days: int
+    prior: float = Field(description="Pseudo wins and losses added to a champion's league record")
+    pool_top: int
+    evaluation: WinModelEvaluation
+    notes: list[str]

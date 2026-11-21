@@ -155,6 +155,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return repo.series_draft(series_id, ours)
 
     @api.get(
+        "/draft/win-model",
+        response_model=s.WinModel,
+        summary="Logistic win-probability model of the draft state, trained on games before `before`",
+    )
+    def win_model(
+        team: Name,
+        opponent: Name,
+        before: Annotated[
+            str | None, Query(description="ISO time; train only on earlier games")
+        ] = None,
+    ) -> s.WinModel:
+        return repo.win_model(team, opponent, before)
+
+    @api.get(
         "/draft/backtest",
         response_model=s.DraftBacktest,
         summary="How far the pool-stress idea can be trusted (read from the cache)",

@@ -27,6 +27,7 @@ import numpy as np
 from lockout.api import schemas as s
 from lockout.config import Settings
 from lockout.detectors.tells import wilson_interval
+from lockout.draft import winmodel as wm
 from lockout.draft.planner import PickIndex, SeriesPlan, TeamState, jungle_bridge, plan_series
 from lockout.draft.pools import PickRec, pool_weights
 from lockout.draft.tendencies import (
@@ -871,6 +872,49 @@ class Repository:
                 "Pools, lineups and the opponent's recent games are taken from before game 1 of this "
                 "series, so nothing the series itself revealed leaks into the suggestions.",
                 "Jungle macro figures use every game in the cache, including this series.",
+            ],
+        )
+
+    # -- live draft win probability --------------------------------------------------------------------------
+
+    def _win_rows(self) -> tuple[list[wm.GameRow], dict[str, list[tuple[datetime, float]]]]:
+        picks = (
+            self.index.picks
+        )  # outside the memo lock: `index` takes the same (non-reentrant) lock
+        return self._memoised("win_rows", lambda: wm.build_rows(self.cache, picks))
+
+    def win_model(self, team: str, opponent: str, before: str | None = None) -> s.WinModel:
+        (ours_id, _), (theirs_id, _) = self.resolve(team), self.resolve(opponent)
+        rows, elo_hist = self._win_rows()
+        t = _parse_ts(before) if before else self._as_of()
+        train = [r for r in rows if r.t < t]
+        if len(train) < 50:
+            raise NotFoundError(
+                f"Only {len(train)} games before {t:%Y-%m-%d}; the model needs at least 50."
+            )
+        fitted = self._memoised(f"win_fit:{len(train)}", lambda: wm.fit(train))
+        ev = self._memoised("win_eval", lambda: wm.evaluate(rows))
+        return s.WinModel(
+            features=list(wm.FEATURES),
+            mean=fitted.mean,
+            scale=fitted.scale,
+            coef=fitted.coef,
+            intercept=fitted.intercept,
+            n_train=fitted.n_train,
+            ours_id=ours_id,
+            opponent_id=theirs_id,
+            ours_elo=wm.rating_before(elo_hist, ours_id, t),
+            opponent_elo=wm.rating_before(elo_hist, theirs_id, t),
+            meta_days=wm.META_DAYS,
+            prior=wm.PRIOR,
+            pool_top=wm.POOL_TOP,
+            evaluation=s.WinModelEvaluation(
+                **{k: getattr(ev, k) for k in s.WinModelEvaluation.model_fields}
+            ),
+            notes=[
+                "Features are blue minus red: Elo / 400, pool comfort of the picks so far / 5, shrunk league win "
+                "rate of the picks so far / 5, and the lowest comfort pool left at the start of the game.",
+                "Draft features add little over team strength: read the bar as a small, honest nudge.",
             ],
         )
 

@@ -388,3 +388,37 @@ export interface SeriesDraft {
   meta: ChampionStats[];
   notes: string[];
 }
+
+// --- Live draft win probability --------------------------------------------------------------------------
+
+export interface WinModelEvaluation {
+  n_train: number;
+  n_test: number;
+  accuracy: number;
+  log_loss: number;
+  auc: number;
+  elo_accuracy: number;
+  elo_log_loss: number;
+  elo_auc: number;
+  blue_rate: number;
+  blue_log_loss: number;
+}
+
+/** Logistic model of P(blue wins) from the draft state (see src/lockout/draft/winmodel.py). */
+export interface WinModel {
+  features: string[];
+  mean: number[];
+  scale: number[];
+  coef: number[];
+  intercept: number;
+  n_train: number;
+  ours_id: string;
+  opponent_id: string;
+  ours_elo: number;
+  opponent_elo: number;
+  meta_days: number;
+  prior: number;
+  pool_top: number;
+  evaluation: WinModelEvaluation;
+  notes: string[];
+}

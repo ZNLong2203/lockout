@@ -293,6 +293,8 @@ export interface SeriesContext {
   opponent_recent: RecentGame[];
   jungle_bridges: Record<string, JungleBridge>;
   league_top3_share_by_game: number[];
+  ours_recent: RecentGame[];
+  role_by_pick: Record<string, Record<string, number>>;
 }
 
 // --- Draft tendencies of one team ----------------------------------------------------------------------------

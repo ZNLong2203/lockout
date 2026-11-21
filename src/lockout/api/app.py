@@ -139,7 +139,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def series_list(
         team: Annotated[str | None, Query(description="A team id or part of a name")] = None,
         opponent: Annotated[str | None, Query(description="A team id or part of a name")] = None,
-        limit: Annotated[int, Query(ge=1, le=200)] = 30,
+        limit: Annotated[int, Query(ge=1, le=1000)] = 30,
     ) -> list[s.SeriesSummary]:
         return repo.series_list(team, opponent, limit)
 

@@ -711,7 +711,34 @@ class Repository:
             opponent_recent=self._recent_games(theirs_id, before),
             jungle_bridges=bridges,
             league_top3_share_by_game=league,
+            ours_recent=self._recent_games(ours_id, before),
+            role_by_pick=self._role_by_pick(as_of or self._as_of()),
         )
+
+    def _role_by_pick(self, as_of: datetime) -> dict[str, dict[str, float]]:
+        """How often each role is taken at a side's n-th pick, over the 180 days before ``as_of``."""
+
+        def build() -> dict[str, dict[str, float]]:
+            stop = as_of.isoformat().replace("+00:00", "Z")
+            start = (as_of - timedelta(days=180)).isoformat().replace("+00:00", "Z")
+            rows = self._rows(
+                f"""with p as (
+                        select side, role,
+                               row_number() over (partition by game_id, team_id order by seq) as k
+                        from {self._table("draft_enriched")}
+                        where action = 'pick' and role in {ROLE_ORDER}
+                          and started_at >= ? and started_at < ?)
+                    select side, k, role, count(*) from p where k <= 5 group by 1, 2, 3""",
+                [start, stop],
+            )
+            counts: dict[str, Counter[str]] = {}
+            for side, k, role, n in rows:
+                counts.setdefault(f"{side}-{k}", Counter())[role] = n
+            return {
+                key: {r: n / sum(c.values()) for r, n in c.items()} for key, c in counts.items()
+            }
+
+        return self._memoised(f"role_by_pick:{as_of:%Y-%m-%d}", build)
 
     # -- league meta and real series --------------------------------------------------------------------------
 

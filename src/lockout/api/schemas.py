@@ -336,6 +336,13 @@ class SeriesContext(BaseModel):
     league_top3_share_by_game: list[float] = Field(
         description="From draft_backtest.json pick_depth.share_top3"
     )
+    ours_recent: list[RecentGame] = Field(
+        default_factory=list, description="Our last 5 games, newest first"
+    )
+    role_by_pick: dict[str, dict[str, float]] = Field(
+        default_factory=dict,
+        description="League share of each role at a side's n-th pick ('blue-1' .. 'red-5'), last 180 days",
+    )
 
 
 # --- Draft tendencies of one team: what repeats, and how the draft shifts in Fearless games -------------

@@ -1,58 +1,46 @@
-# AI showcase
+# Tooling explanation
 
-The short case study for the Best AI-Powered Workflow Story bonus is [docs/ai-workflow-story.md](docs/ai-workflow-story.md).
+Lockout was built with **JetBrains Air**, running the Claude agent, inside **PyCharm**. The short case study for
+the Best AI-Powered Workflow Story bonus is [docs/ai-workflow-story.md](docs/ai-workflow-story.md).
 
-How AI tools shaped Lockout, written from what actually happened. The bonus prize looks at the JetBrains tools,
-so they come first; the other AI tools used in the project are disclosed after them.
+> Draft: the items marked **[owner]** need the project owner's own notes, screenshots or timings.
 
-> Draft: the items marked **[owner]** need the project owner's own notes, screenshots or timings. Nothing here
-> should be submitted before they are filled in or removed.
-
-## JetBrains
-
-| Tool | What it was used for | Evidence |
+| Tool | What it did in this project | Evidence |
 |---|---|---|
-| **JetBrains Air in PyCharm (Claude agent)** | An Air agent session in PyCharm, running the Claude agent (Opus 5.5). In that session it wrote the read-only HTTP API (`src/lockout/api/{app,queries}.py`, `lockout serve`, `tests/test_api.py`) from the written brief `docs/tasks/junie-api.md`, then the scouting page, the 2D replay and the draft-tendency panel in `web/` | [`docs/img/pycharm-project.png`](docs/img/pycharm-project.png) and [`docs/img/pycharm-run-config.png`](docs/img/pycharm-run-config.png) (the IDE with the project and the shared run configuration loaded); **[owner]** add a screenshot of the task and of the diff review |
-| **PyCharm** | The project IDE for the Python back end (`.idea/` is committed). Shared run configurations in `.run/` (tests, lint, each `lockout` command, the API, the web app, and one that starts API and web together) | `.run/*.run.xml` in the repo, written by the agent as files and run from the IDE by the owner; **[owner]** add a screenshot of a run and of a debugger session |
-| **Junie / DataGrip / WebStorm** | **[owner]** only list what was actually used, or delete this row | |
+| **JetBrains Air (Claude agent) in PyCharm** | Built the project end to end from written briefs: the ETL and the macro detectors, the Fearless pool model and its backtest, the read-only API, the web app (draft room, team pages, 3D replay), the draft co-pilot and its training and evaluation scripts, the live win model, and the hosted demo with CI | [`docs/tasks/api-brief.md`](docs/tasks/api-brief.md) (one of the briefs); commit history; [`docs/img/pycharm-project.png`](docs/img/pycharm-project.png); **[owner]** a screenshot of an Air task and of a diff review |
+| **PyCharm** | The project IDE: `.idea/` is committed, and shared run configurations in `.run/` cover tests, lint, every `lockout` command, the API, the web app, and "API + web" together | `.run/*.run.xml`; [`docs/img/pycharm-run-config.png`](docs/img/pycharm-run-config.png); **[owner]** a screenshot of a run or a debugger session |
 
-### What the agent got right
+## How we worked with the agent
 
-- It worked from a **written contract** (`docs/api-contract.md` plus the Pydantic models in `schemas.py`) and
-  produced all ten endpoints with a response model each, so nothing outside the schemas can leave the server.
-- Tests were written against a **synthetic cache built in a temp folder**; they pin the 404 rule, the event filter and
-  the round-trip against the schemas. Three deliberate mutations of the implementation (the route-prefix length, the
-  minimum game count, the event scope) each made the suite fail, so the tests are not decoration.
-- A test compares the endpoints in `/openapi.json` with the table in the contract, and another compares every
-  Pydantic model with the TypeScript interface of the same name, so documentation and front end cannot drift silently.
-- It smoke-tested every endpoint on the real cache printing only status codes and sizes, never values.
+- **Contract first.** [`docs/api-contract.md`](docs/api-contract.md) and the Pydantic models are the single
+  source of truth. A test compares the served `/openapi.json` with the contract, and another compares every model
+  with its TypeScript interface, so the agent, the API and the front end cannot drift apart.
+- **Tests that fail on purpose.** The agent mutated its own code (route prefix, minimum game count, event scope)
+  to prove the tests catch each change. A test also caught a deadlock in the win-model endpoint before it shipped.
+- **Measure, don't claim.** Every model was compared with a baseline on data it had not seen:
+  - the co-pilot: 24.8 % → 32.1 % → 34.1 % top-3 against a 25.8 % baseline;
+  - the win model: log loss 0.651 → 0.639.
+  When a tempting change made things worse on held-out data (a wider meta window, per-player Elo), it was dropped
+  and written down. See [docs/methodology.md](docs/methodology.md).
+- **Licensed data kept out of view by design.**
+  - Synthetic fixtures feed every test, and `.aiignore` hides the data folders.
+  - Checks against the real cache print counts only.
+  - The public demo runs on synthetic data.
+  - **[owner]** Confirm the "do not use my data for training" setting was on, with a screenshot.
 
-### What had to be fixed or decided by hand
+## What had to be fixed or decided by hand
 
-- **Scope.** The first plan reserved the API for "the IDE agent" and left only the web app to Claude Code. That split
-  was wrong: the same agent was already running inside PyCharm, so it built the API too.
-- **Dependency.** Starlette's `TestClient` needs the extra package `httpx2`. The brief said to add no dependencies,
-  so the tests use a small in-process ASGI client instead. Installing the package was also blocked by the
-  environment's permission rules, which is why the choice was made and not revisited.
-- **A no-op check.** The first mutation test did nothing: `ruff format` had wrapped the constant it tried to edit, so
-  the pattern did not match and the run "passed". It was caught by checking that the edit had really been applied.
-- **Data licence.** One aggregate-only CLI run printed team-level rates (not rows) into the agent's context, which
-  the project rules say to avoid. It was reported at once; every later check against the real cache printed status
-  codes and counts only.
-  **[owner]** confirm the "do not use my data for training" options were on in the JetBrains AI settings at the time and attach a screenshot.
-
-## Other AI tools (disclosure)
-
-- **Claude Code** started the repository and wrote most of the analysis: ETL, role and map geometry, jungle and
-  objective detectors, tells, the Fearless pool model, its backtest and the first versions of the web app. It also
-  built the later draft features: the step-by-step co-pilot and its evaluation, the Fearless budget, the
-  composition check, the real-series replay, team logos and the hosted demo. Commits made with it carry a
-  `Co-Authored-By` trailer.
-- **Claude** did the competition research and the design of the draft-first
-  direction after the Category 2 judging criteria were re-read.
+- **Direction.** The first plan was macro-only; re-reading the Category 2 judging text ("must demonstrate ...
+  draft preparation") turned it draft-first, with macro as supporting context.
+- **UI.** The first screens were text-heavy. They were rebuilt around search, real champion art and team logos,
+  a 3D Summoner's Rift and a broadcast-style replay, after walking through the app as a newcomer.
+- **Dependency.** Starlette's `TestClient` needs an extra package the brief did not allow, so the tests use a small
+  in-process ASGI client.
+- **A no-op check.** One mutation test did nothing because the formatter had wrapped the line it edited. We now
+  check that the edit was really applied.
 
 ## What we would tell another team
 
-1. Write the contract first and test against it; both the agent and the front end then work from the same source.
-2. Ask the agent for tests that fail when the behaviour breaks, and check that they do.
-3. Keep licensed data out of the agent's view by design (`.aiignore`, synthetic fixtures), not by promise.
+1. Write the contract and the brief first; the agent, the tests and the front end then share one source of truth.
+2. Ask for tests that fail on purpose, and for every model, a baseline and a held-out score.
+3. Protect licensed data with structure (fixtures, ignore files, counts-only checks), not with promises.

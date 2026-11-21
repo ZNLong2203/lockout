@@ -31,7 +31,6 @@ See [docs/methodology.md](docs/methodology.md).
 
 *Screenshots show the built-in synthetic demo data: invented teams and numbers, nothing from the licensed data. The API's own documentation page is in [docs/img/api-docs.jpg](docs/img/api-docs.jpg).*
 
-> **Status:** feature complete, polishing for submission. See [docs/roadmap.md](docs/roadmap.md).
 
 ## Run it
 
@@ -78,11 +77,11 @@ the co-pilot on real series (aggregate rates only).
 ## Documentation
 
 [Architecture](docs/architecture.md) · [Methodology](docs/methodology.md) · [Data audit](docs/data-audit.md) ·
-[API contract](docs/api-contract.md) · [Roadmap](docs/roadmap.md) · [AI showcase](AI_SHOWCASE.md)
+[API contract](docs/api-contract.md) · [AI showcase](AI_SHOWCASE.md)
 
-## How the work is split across JetBrains tools
+## Built with JetBrains
 
-See [docs/jetbrains-plan.md](docs/jetbrains-plan.md) for which tool does what.
+Built with **JetBrains Air** (Claude agent) inside **PyCharm**. Which tool did what: [AI_SHOWCASE.md](AI_SHOWCASE.md); the short case study: [docs/ai-workflow-story.md](docs/ai-workflow-story.md).
 
 ## Data license
 

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Rules for AI coding agents (Claude Code, Junie, JetBrains Air, Codex, …) working on Lockout.
+Rules for the AI coding agent (JetBrains Air) working on Lockout.
 
 ## Data license (most important)
 

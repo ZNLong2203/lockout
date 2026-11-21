@@ -1,17 +1,17 @@
-# Task for Junie / Air / an IDE agent: implement the read-only API
+# Task brief for the JetBrains Air agent: implement the read-only API
 
-> **Status: done** (2026-11-20). Implemented with Claude Code running inside PyCharm from this brief:
+> **Status: done** (2026-11-20). Implemented by JetBrains Air (Claude agent) in PyCharm from this brief:
 > `src/lockout/api/{app,queries}.py`, `lockout serve`, `tests/test_api.py` (28 tests on a synthetic cache).
 > Deviations from the brief, and why: tests call the app through a small stdlib ASGI client
 > (`tests/asgi_client.py`) instead of `TestClient`, because Starlette 1.10's `TestClient` needs the extra package
 > `httpx2` and the brief says to add no dependencies; the contract gained `/api/teams/{id}/draft-tendencies`.
 
-Paste this into Junie (in PyCharm) as the task.
+Given to the Air agent in PyCharm as the task.
 
 ---
 
 Implement the FastAPI back end described in `docs/api-contract.md`, using the response models in
-`src/lockout/api/schemas.py`. Follow `.junie/guidelines.md` and `AGENTS.md`.
+`src/lockout/api/schemas.py`. Follow `AGENTS.md`.
 
 **Do**
 

@@ -24,6 +24,11 @@ dev = [
   "pytest>=8.3",
   "ruff>=0.7",
 ]
+ml = [
+    "lightgbm>=4.7.0",
+    "scikit-learn>=1.9.1",
+    "xgboost>=3.4.1",
+]
 
 [project.scripts]
 lockout = "lockout.cli:app"

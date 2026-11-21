@@ -28,6 +28,7 @@ from lockout.api import schemas as s
 from lockout.config import Settings
 from lockout.detectors.tells import wilson_interval
 from lockout.draft import winmodel as wm
+from lockout.draft.copilot_ranker import load_ranker
 from lockout.draft.planner import PickIndex, SeriesPlan, TeamState, jungle_bridge, plan_series
 from lockout.draft.pools import PickRec, pool_weights
 from lockout.draft.tendencies import (
@@ -641,6 +642,9 @@ class Repository:
                         s.ContextPoolEntry(champion=c, share=share, games=counts[c])
                         for c, share in top
                     ],
+                    recent=dict(
+                        Counter(h.champion for h in history if h.t >= as_of - timedelta(days=30))
+                    ),
                 )
             )
         name = self._name(team_id)
@@ -771,6 +775,18 @@ class Repository:
                 group by 1""",
             [cutoff, stop],
         )
+        trend_start = (end - timedelta(days=21)).isoformat().replace("+00:00", "Z")
+        ((games_recent,),) = self._rows(
+            f"select count(distinct game_id) from {t} where started_at >= ? and started_at < ?",
+            [trend_start, stop],
+        )
+        recent_seen = dict(
+            self._rows(
+                f"""select champion, count(distinct game_id) from {t}
+                    where started_at >= ? and started_at < ? and champion is not null group by 1""",
+                [trend_start, stop],
+            )
+        )
         roles: dict[str, Counter[str]] = {}
         for champ, role, n in self._rows(
             f"""select champion, role, count(*) from {t}
@@ -793,6 +809,9 @@ class Repository:
                     win_rate=wins / picks if picks >= MIN_WIN_RATE_PICKS else None,
                     roles={r: n / total for r, n in rc.most_common()} if total else {},
                     role=rc.most_common(1)[0][0] if total else "unknown",
+                    presence_recent=recent_seen.get(champ, 0) / games_recent
+                    if games_recent
+                    else 0.0,
                 )
             )
         return sorted(out, key=lambda c: (-c.presence, c.champion))
@@ -944,6 +963,14 @@ class Repository:
                 "Draft features add little over team strength: read the bar as a small, honest nudge.",
             ],
         )
+
+    def copilot_ranker(self) -> s.CopilotRanker:
+        model = load_ranker(self.settings.cache_dir)
+        if model is None:
+            raise NotFoundError(
+                "No co-pilot ranker yet: run `npm run export:features` then `lockout copilot-train`."
+            )
+        return s.CopilotRanker.model_validate(model)
 
     def backtest(self) -> s.DraftBacktest:
         path = self.cache / "draft_backtest.json"

@@ -169,6 +169,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return repo.win_model(team, opponent, before)
 
     @api.get(
+        "/draft/copilot-ranker",
+        response_model=s.CopilotRanker,
+        summary="The co-pilot's tree re-ranker (local only; 404 until `lockout copilot-train` has run)",
+    )
+    def copilot_ranker() -> s.CopilotRanker:
+        return repo.copilot_ranker()
+
+    @api.get(
         "/draft/backtest",
         response_model=s.DraftBacktest,
         summary="How far the pool-stress idea can be trusted (read from the cache)",

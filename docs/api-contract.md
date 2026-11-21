@@ -19,6 +19,7 @@ Base path `/api`. Errors use standard HTTP codes with a JSON `{"detail": "..."}`
 | `GET /api/series?team=&opponent=&limit=` | `SeriesSummary[]` | Finished two-team series, newest first. With `team`, that team is listed first. `format` is inferred from the winning score |
 | `GET /api/series/{series_id}/draft?ours=` | `SeriesDraft` | Each game's 20 draft steps in tournament order, plus a `SeriesContext` built from data **before** game 1 (lineups from game 1, pools and recent games as of its start) so a replay cannot peek ahead; `meta` is the league meta of the 90 days before game 1 |
 | `GET /api/draft/win-model?team=&opponent=&before=` | `WinModel` | Coefficients of a logistic model of P(blue wins) from the draft state, fitted on games before `before` (default: all), the two teams' Elo at that time and a time-split evaluation against Elo alone. Logic: `lockout.draft.winmodel` |
+| `GET /api/draft/copilot-ranker` | `CopilotRanker` | The co-pilot's LightGBM re-ranker as flat trees, with its held-out hit rates. Fitted on licensed data, so it lives in the gitignored cache and is served locally only; 404 until `lockout copilot-train` has run |
 | `GET /api/draft/backtest` | `DraftBacktest` | Read `draft_backtest.json` from the cache; do not recompute |
 | `GET /api/draft/bridge?champion=&team=` | `JungleBridge` | `scope` is `team` when that team has the champion, else `league`; 404 if never played |
 

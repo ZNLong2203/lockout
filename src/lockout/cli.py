@@ -198,9 +198,45 @@ def winmodel() -> None:
         f"Elo only    : accuracy {e.elo_accuracy:.1%}, log loss {e.elo_log_loss:.4f}, AUC {e.elo_auc:.3f}"
     )
     typer.echo(f"blue side   : {e.blue_rate:.1%} of training games, log loss {e.blue_log_loss:.4f}")
+    typer.echo(
+        f"confident   : {e.confident_accuracy:.1%} right on the {e.confident_n} games given 65 %+"
+    )
     m = fit(rows)
     coefs = ", ".join(f"{f} {c:+.3f}" for f, c in zip(FEATURES, m.coef, strict=True))
     typer.echo(f"coefficients (standardised): {coefs}; intercept {m.intercept:+.3f}")
+
+
+@app.command("copilot-train")
+def copilot_train() -> None:
+    """Train the co-pilot's LightGBM re-ranker (needs `uv sync --group ml` and `npm run export:features`)."""
+    from lockout.draft.copilot_ranker import train
+
+    try:
+        ev = train(load_settings().cache_dir)
+    except ImportError as exc:
+        typer.secho(
+            "FAIL: install the ml group first: uv sync --group ml", fg=typer.colors.RED, err=True
+        )
+        raise typer.Exit(1) from exc
+    except FileNotFoundError as exc:
+        typer.secho(
+            f"FAIL: {exc}. Run `cd web && npm run export:features` first.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(1) from exc
+    typer.echo(
+        f"held-out steps {int(ev['test_steps'])}, training steps {int(ev['train_steps'])}, trees {int(ev['trees'])}"
+    )
+    for k in (1, 3, 5, 10):
+        typer.echo(f"top {k:>2}: trees {ev[f'top{k}']:.1%}   linear {ev[f'linear_top{k}']:.1%}")
+    typer.echo(
+        "top 3 by step: "
+        + ", ".join(
+            f"{key} {ev[f'top3_{key}']:.1%}"
+            for key in ("ban-us", "ban-them", "pick-us", "pick-them")
+        )
+    )
 
 
 @app.command()

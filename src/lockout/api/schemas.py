@@ -298,6 +298,10 @@ class ContextPlayer(BaseModel):
     role: Role
     history: int = Field(description="Picks the pool is based on")
     pool: list[ContextPoolEntry]
+    recent: dict[str, int] = Field(
+        default_factory=dict,
+        description="Champion -> picks in the 30 days before the context's time",
+    )
 
 
 class ContextTeam(BaseModel):
@@ -411,6 +415,9 @@ class ChampionStats(BaseModel):
     win_rate: float | None = Field(description="wins / picks; null below 5 picks")
     roles: dict[str, float] = Field(description="role -> share of this champion's picks")
     role: str = Field(description="Most common role, or 'unknown'")
+    presence_recent: float = Field(
+        default=0.0, description="Presence over the last 21 days of the window (the trend)"
+    )
 
 
 class SeriesTeam(BaseModel):
@@ -469,6 +476,8 @@ class WinModelEvaluation(BaseModel):
     elo_auc: float
     blue_rate: float = Field(description="Blue side's win rate in the training games")
     blue_log_loss: float
+    confident_n: int = Field(description="Test games where the model gave one side at least 65 %")
+    confident_accuracy: float
 
 
 class WinModel(BaseModel):
@@ -489,3 +498,24 @@ class WinModel(BaseModel):
     pool_top: int
     evaluation: WinModelEvaluation
     notes: list[str]
+
+
+# --- Co-pilot re-ranker (served locally only: it is fitted on licensed data) ------------------------------
+
+
+class FlatTree(BaseModel):
+    """One tree: f = split feature (-1 for a leaf), t = threshold (go left when x <= t), l/r = children, v = leaf."""
+
+    f: list[int]
+    t: list[float]
+    l: list[int]  # noqa: E741
+    r: list[int]
+    v: list[float]
+
+
+class CopilotRanker(BaseModel):
+    top: int = Field(description="How many of the linear model's best candidates the trees re-rank")
+    trees: list[FlatTree]
+    evaluation: dict[str, float] = Field(
+        description="Hit rates on the 80 most recent series, held out: topK for the trees, linear_topK before"
+    )

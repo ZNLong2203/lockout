@@ -37,6 +37,7 @@ META_DAYS = 90
 POOL_TOP = 8
 PRIOR = 10.0  # pseudo wins and pseudo losses for a champion's win rate
 RIDGE = 1.0
+CONFIDENT = 0.65  # reported separately: accuracy when the model gives one side at least this
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +69,8 @@ class Evaluation:
     elo_auc: float
     blue_rate: float
     blue_log_loss: float
+    confident_n: int = 0  # test games where the model gives a side at least CONFIDENT
+    confident_accuracy: float = 0.0
     notes: list[str] = field(default_factory=list)
 
 
@@ -224,7 +227,22 @@ def evaluate(rows: list[GameRow], train_share: float = 0.75) -> Evaluation:
     acc, ll, auc = _scores(p_full, y)
     e_acc, e_ll, e_auc = _scores(p_elo, y)
     _, b_ll, _ = _scores(np.full(len(y), blue), y)
-    return Evaluation(len(train), len(test), acc, ll, auc, e_acc, e_ll, e_auc, blue, b_ll)
+    sure = np.maximum(p_full, 1 - p_full) >= CONFIDENT
+    sure_acc = float(((p_full[sure] >= 0.5) == (y[sure] == 1)).mean()) if sure.any() else 0.0
+    return Evaluation(
+        len(train),
+        len(test),
+        acc,
+        ll,
+        auc,
+        e_acc,
+        e_ll,
+        e_auc,
+        blue,
+        b_ll,
+        int(sure.sum()),
+        sure_acc,
+    )
 
 
 def rating_before(

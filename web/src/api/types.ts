@@ -260,6 +260,7 @@ export interface ContextPlayer {
   role: Role;
   history: number;
   pool: ContextPoolEntry[];
+  recent: Record<string, number>;
 }
 
 export interface ContextTeam {
@@ -356,6 +357,7 @@ export interface ChampionStats {
   win_rate: number | null;
   roles: Record<string, number>;
   role: string;
+  presence_recent: number;
 }
 
 export interface SeriesTeam {
@@ -404,6 +406,8 @@ export interface WinModelEvaluation {
   elo_auc: number;
   blue_rate: number;
   blue_log_loss: number;
+  confident_n: number;
+  confident_accuracy: number;
 }
 
 /** Logistic model of P(blue wins) from the draft state (see src/lockout/draft/winmodel.py). */
@@ -423,4 +427,21 @@ export interface WinModel {
   pool_top: number;
   evaluation: WinModelEvaluation;
   notes: string[];
+}
+
+// --- Co-pilot re-ranker (local API only) ------------------------------------------------------------------
+
+/** One tree: f = split feature (-1 for a leaf), t = threshold (go left when x <= t), l/r = children, v = leaf. */
+export interface FlatTree {
+  f: number[];
+  t: number[];
+  l: number[];
+  r: number[];
+  v: number[];
+}
+
+export interface CopilotRanker {
+  top: number;
+  trees: FlatTree[];
+  evaluation: Record<string, number>;
 }

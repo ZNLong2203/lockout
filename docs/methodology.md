@@ -209,6 +209,33 @@ the start of every game: exact for games already played, forecast with the risk 
 Hovering a champion re-runs the forecast as if it were picked now. Changes under 3 points are within simulation
 noise and are hidden.
 
+### Public demo data (Leaguepedia)
+
+The licensed GRID data must stay on the machine, so the hosted demo runs on public data instead. Leaguepedia
+publishes every professional game's draft in order, with the role of each pick, the players, the winner and the
+patch, under CC BY-SA 3.0.
+- `lockout public-build` downloads LCK, LEC, LTA, LCS, MSI and Worlds since January 2025: 2,789 games up to the
+  Worlds 2026 final.
+- It writes them in the same cache layout as GRID, so the API, the models and the training scripts run unchanged.
+- `lockout public-export` writes static JSON for the demo: 60 teams, 160 series, win model, co-pilot re-ranker.
+
+There are no player positions in public data. In the demo, the replay keeps the real teams, players, champions and
+winner, but its movements and events are simulated and labelled so. The map habits and tells say they need the
+local build.
+
+The same models trained on this public data and held out on its 80 most recent series (Aug-Nov 2026, Worlds
+included, 5,280 steps):
+
+| Real choice within… | Top 3 | Top 10 |
+|---|---|---|
+| Linear + LightGBM re-ranker | **42.4 %** (bans 47 %) | **75.3 %** |
+| Linear only | 37.0 % | 65.7 % |
+| League-presence baseline | 24.0 % | - |
+
+The win model on public data scores 62.0 % overall and 74.4 % when it gives a side 65 % or more (273 of the
+later games). It does worse overall than on GRID because the public set holds more international games between
+teams that rarely meet.
+
 ## 6. Replay and evidence
 
 Every tell keeps each occurrence (game, trigger time, whether the team did what the tell says). The API serves those

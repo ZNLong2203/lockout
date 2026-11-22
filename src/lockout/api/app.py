@@ -144,7 +144,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return repo.series_list(team, opponent, limit)
 
     @api.get(
-        "/series/{series_id}/draft",
+        "/series/{series_id:path}/draft",
         response_model=s.SeriesDraft,
         summary="Every draft of a real series plus the draft-room context as it was before game 1",
     )

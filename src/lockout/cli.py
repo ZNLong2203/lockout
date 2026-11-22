@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import typer
 
 from lockout.config import load_settings
@@ -236,6 +238,46 @@ def copilot_train() -> None:
             f"{key} {ev[f'top3_{key}']:.1%}"
             for key in ("ban-us", "ban-them", "pick-us", "pick-them")
         )
+    )
+
+
+PUBLIC_ROOT = Path(__file__).resolve().parents[2] / "private" / "cache" / "public"
+PUBLIC_OUT = Path(__file__).resolve().parents[2] / "web" / "public" / "data"
+
+
+@app.command("public-build")
+def public_build(
+    refresh: bool = typer.Option(False, help="Download again instead of using the raw cache."),
+) -> None:
+    """Build a draft cache from Leaguepedia's public data (CC BY-SA) for the hosted demo."""
+    from dataclasses import asdict
+
+    from lockout.draft.analysis import load_picks, write_backtest
+    from lockout.draft.tendencies import pick_depth_by_game
+    from lockout.public.leaguepedia import build, fetch
+
+    rows = fetch(PUBLIC_ROOT / "raw" / "leaguepedia.json", refresh=refresh)
+    stats = build(rows, PUBLIC_ROOT / "data", PUBLIC_ROOT / "cache")
+    lol = PUBLIC_ROOT / "cache" / "lol"
+    depth = [asdict(d) for d in pick_depth_by_game(load_picks(lol))]
+    write_backtest(lol, extra={"pick_depth": depth})
+    typer.secho(
+        f"OK: {stats['games']} games, {stats['draft_actions']} draft actions ({stats['skipped']} skipped)",
+        fg=typer.colors.GREEN,
+    )
+
+
+@app.command("public-export")
+def public_export(
+    logos: bool = typer.Option(True, help="Look up team logos on Leaguepedia."),
+) -> None:
+    """Export the public cache as static JSON for the hosted demo (web/public/data)."""
+    from lockout.public.export import export
+
+    stats = export(PUBLIC_ROOT, PUBLIC_OUT, logos=logos)
+    typer.secho(
+        f"OK: {stats['teams']} teams, {stats['series']} series, {stats['games']} games -> {PUBLIC_OUT}",
+        fg=typer.colors.GREEN,
     )
 
 

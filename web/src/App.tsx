@@ -53,9 +53,15 @@ export default function App() {
   // A draft link (#/draft?us=..&vs=..) sets the matchup; the room stays mounted so a draft in progress survives navigation.
   useEffect(() => {
     if (route.page === "draft" && (route.us || route.vs)) {
-      setMatchup((m) => ({ ours: route.us ?? m.ours, opponent: route.vs ?? m.opponent }));
+      setMatchup((m) => {
+        const opponent = route.vs ?? m.opponent;
+        let ours = route.us ?? m.ours;
+        // "Draft against them" on our own team's page: play them with the team we last faced instead of a mirror
+        if (ours === opponent) ours = m.opponent !== opponent ? m.opponent : (teams.find((t) => t.team_id !== opponent)?.team_id ?? ours);
+        return { ours, opponent };
+      });
     }
-  }, [route]);
+  }, [route, teams]);
 
   const onMatchup = (m: Matchup) => {
     setMatchup(m);

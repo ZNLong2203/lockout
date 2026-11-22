@@ -60,15 +60,29 @@ export function demoReplay(): Replay {
       return [Math.round(x), Math.round(y)];
     }),
   );
+  // Spawns and objective kills use the feed's own names, so the map shows each monster while it is up.
+  const spawn = (t: number, name: string): ReplayEvent => ({ t, kind: "spawn", name, slot: null, target_slot: null, x: null, y: null });
+  const baron = PITS.baron as readonly number[];
   const events: ReplayEvent[] = [
+    spawn(210, "riftScuttlerTop"),
+    spawn(210, "riftScuttlerBot"),
     { t: 215, kind: "kill", name: "kill", slot: 2, target_slot: 7, x: 6295, y: 6666 },
     { t: 245, kind: "respawn", name: "respawn", slot: null, target_slot: 7, x: null, y: null },
+    { t: 252, kind: "objective", name: "RiftScuttlerTop", slot: 6, target_slot: null, x: 4600, y: 9500 },
+    spawn(300, "infernalDrake"),
     { t: 338, kind: "kill", name: "kill", slot: 8, target_slot: 0, x: 1472, y: 7032 },
+    spawn(360, "voidGrub1"),
+    spawn(360, "voidGrub2"),
+    spawn(360, "voidGrub3"),
     { t: 368, kind: "respawn", name: "respawn", slot: null, target_slot: 0, x: null, y: null },
-    { t: DRAGON_T, kind: "objective", name: "infernal-dragon", slot: 1, target_slot: null, x: PITS.dragon[0], y: PITS.dragon[1] },
+    { t: 452, kind: "objective", name: "VoidGrub", slot: 6, target_slot: null, x: baron[0] as number, y: baron[1] as number },
+    { t: 460, kind: "objective", name: "VoidGrub", slot: 6, target_slot: null, x: baron[0] as number, y: baron[1] as number },
+    { t: DRAGON_T, kind: "objective", name: "InfernalDrake", slot: 1, target_slot: null, x: PITS.dragon[0], y: PITS.dragon[1] },
     { t: 640, kind: "kill", name: "kill", slot: 3, target_slot: 9, x: 9800, y: 5200 },
+    { t: 670, kind: "respawn", name: "respawn", slot: null, target_slot: 9, x: null, y: null },
     { t: 840, kind: "structure", name: "red-turret-mid-1", slot: 2, target_slot: null, x: 9649, y: 9729 },
-  ];
+    spawn(840, "riftHerald"),
+  ].sort((a, b) => a.t - b.t);
   return {
     game_id: DEMO_REPLAY_ID,
     series_id: "demo-series",

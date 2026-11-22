@@ -3,13 +3,16 @@
 import { Billboard, Html, Line, OrbitControls, useTexture } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import * as THREE from "three";
 import type { Replay } from "../api/types";
 import { iconUrl, mapUrl, type Catalog } from "../lib/ddragon";
 import { CAMPS, LANES, PITS, mirror, structures } from "../lib/map";
 import { frameAt, trailOf } from "../lib/replay";
 import { toWorld } from "../lib/rift3d";
+import { deathSpot, mapStateAt, campDowntime, type MapState } from "../lib/mapState";
+import { playersAt } from "../lib/replayStats";
+import { Atakhan, Baron, CampMonsters, Dragon, Grubs, Herald, Scuttle, face } from "./Monsters3D";
 import { MAP_EXTENT, heightField, sample } from "../lib/terrain";
 
 const BLUE = "#3b8cff";
@@ -119,6 +122,12 @@ function Water() {
     </mesh>
   );
 }
+
+/** River crab spawns (game units), top and bottom river. */
+const SCUTTLES: [number, number][] = [
+  [4400, 9600],
+  [10500, 5100],
+];
 
 const CAMP_LABEL: Record<string, string> = { blue_buff: "Blue", gromp: "Gromp", wolves: "Wolves", raptors: "Raptors", red_buff: "Red", krugs: "Krugs" };
 
@@ -241,26 +250,61 @@ function Structures() {
   );
 }
 
-function Pit({ at, label }: { at: readonly number[]; label: string }) {
+const DRAGON_NAME: Record<string, string> = {
+  infernal: "Infernal Drake",
+  ocean: "Ocean Drake",
+  cloud: "Cloud Drake",
+  mountain: "Mountain Drake",
+  hextech: "Hextech Drake",
+  chemtech: "Chemtech Drake",
+  elder: "Elder Dragon",
+  dragon: "Dragon",
+};
+
+/** A pit and whoever is in it. Without a replay (`state` undefined) the pits show Dragon and Baron. */
+function Pit({ at, label, state }: { at: readonly number[]; label: "dragon" | "baron"; state?: MapState }) {
   const [x, , z] = toWorld(at[0] as number, at[1] as number);
   const ref = useRef<THREE.Mesh>(null);
   useFrame((_, dt) => {
     if (ref.current) ref.current.rotation.z += dt * 0.6;
   });
+  const yaw = face(x, z);
+  let who: ReactNode = null;
+  let name = label === "dragon" ? "Dragon" : "Baron";
+  if (label === "dragon") {
+    const kind = state ? state.dragon : "dragon";
+    if (kind) {
+      who = <Dragon at={[0, 0, 0]} yaw={yaw} kind={kind} />;
+      name = DRAGON_NAME[kind] ?? "Dragon";
+    }
+  } else {
+    const occ = state ? state.baronPit : { kind: "baron" as const };
+    if (occ?.kind === "baron") who = <Baron at={[0, 0, 0]} yaw={yaw} />;
+    if (occ?.kind === "herald") {
+      who = <Herald at={[0, 0, 0]} yaw={yaw} />;
+      name = "Rift Herald";
+    }
+    if (occ?.kind === "grubs") {
+      who = <Grubs at={[0, 0, 0]} yaw={yaw} count={occ.count} />;
+      name = `Void Grubs ×${occ.count}`;
+    }
+  }
+  const empty = who === null;
   return (
     <group position={[x, 0.05, z]} name={label}>
-      <Html center position={[0, 0.9, 0]} distanceFactor={11} className="map3d-label pit">
-        {label === "dragon" ? "Dragon" : "Baron"}
+      <Html center position={[0, empty ? 0.5 : label === "dragon" ? 1.45 : 1.75, 0]} distanceFactor={11} className={`map3d-label pit ${empty ? "empty" : ""}`}>
+        {name}
       </Html>
+      {who}
       <mesh ref={ref} rotation={[-Math.PI / 2, 0, 0]}>
         <torusGeometry args={[0.62, 0.05, 8, 48]} />
-        <meshStandardMaterial color="#c79bff" emissive="#a970ff" emissiveIntensity={1.6} toneMapped={false} />
+        <meshStandardMaterial color="#c79bff" emissive="#a970ff" emissiveIntensity={empty ? 0.3 : 1.6} toneMapped={false} />
       </mesh>
     </group>
   );
 }
 
-function Camps({ glowSide, startTop, labels }: { glowSide?: "blue" | "red"; startTop?: number; labels: boolean }) {
+function Camps({ glowSide, startTop, labels, alive }: { glowSide?: "blue" | "red"; startTop?: number; labels: boolean; alive?: Record<string, boolean> }) {
   return (
     <>
       {(["blue", "red"] as const).flatMap((sd) =>
@@ -271,16 +315,19 @@ function Camps({ glowSide, startTop, labels }: { glowSide?: "blue" | "red"; star
           const heat = glowSide === sd && startTop !== undefined ? (topSide ? startTop : 1 - startTop) : 0;
           const buff = name === "blue_buff" || name === "red_buff";
           const tint = heat ? RED : buff ? (name === "blue_buff" ? "#4aa3ff" : "#ff7a45") : "#e8c46a";
+          const up = alive ? alive[`${sd}-${name}`] !== false : true;
           return (
             <group key={`${sd}-${name}`} position={[x, 0.04, z]}>
               <mesh rotation={[-Math.PI / 2, 0, 0]}>
                 <ringGeometry args={[0.16 + heat * 0.2, 0.22 + heat * 0.25, 32]} />
-                <meshBasicMaterial color={tint} transparent opacity={0.85} toneMapped={false} />
+                <meshBasicMaterial color={tint} transparent opacity={up ? 0.85 : 0.2} toneMapped={false} />
               </mesh>
-              <mesh position={[0, 0.12 + heat * 0.2, 0]}>
-                <octahedronGeometry args={[0.09 + heat * 0.12, 0]} />
-                <meshStandardMaterial color={tint} emissive={tint} emissiveIntensity={0.8 + heat * 2.5} toneMapped={false} />
-              </mesh>
+              {up && (
+                <group rotation={[0, face(x, z), 0]} scale={1.3 * (1 + heat * 0.5)}>
+                  <CampMonsters name={name} />
+                </group>
+              )}
+              {heat > 0 && <pointLight color={RED} intensity={1.5 + heat * 4} distance={1.6} position={[0, 0.45, 0]} />}
               {labels && (
                 <Html center position={[0, 0.5, 0]} distanceFactor={11} className={`map3d-label ${heat ? "hot" : ""}`}>
                   {CAMP_LABEL[name]}
@@ -295,40 +342,60 @@ function Camps({ glowSide, startTop, labels }: { glowSide?: "blue" | "red"; star
   );
 }
 
-function ChampToken({ url, color, position }: { url: string; color: string; position: [number, number, number] }) {
+function ChampToken({ url, color, position, dead }: { url: string; color: string; position: [number, number, number]; dead?: { respawnIn: number | null } }) {
   const tex = useTexture(url);
   tex.colorSpace = THREE.SRGBColorSpace;
+  const stem = position[1] - 0.05;
   return (
     <group position={position}>
-      <mesh position={[0, -0.35, 0]}>
-        <cylinderGeometry args={[0.015, 0.015, 0.7, 6]} />
-        <meshBasicMaterial color={color} toneMapped={false} />
+      <mesh position={[0, -stem / 2, 0]}>
+        <cylinderGeometry args={[0.015, 0.015, stem, 6]} />
+        <meshBasicMaterial color={dead ? "#6b7280" : color} toneMapped={false} />
       </mesh>
       <Billboard>
         <mesh>
           <circleGeometry args={[0.3, 32]} />
-          <meshBasicMaterial map={tex} toneMapped={false} />
+          <meshBasicMaterial map={tex} color={dead ? "#5b616e" : "#ffffff"} transparent opacity={dead ? 0.75 : 1} toneMapped={false} />
         </mesh>
         <mesh position={[0, 0, -0.001]}>
           <ringGeometry args={[0.29, 0.37, 40]} />
-          <meshBasicMaterial color={color} toneMapped={false} />
+          <meshBasicMaterial color={dead ? "#4b5160" : color} toneMapped={false} />
         </mesh>
+        {dead && (
+          <>
+            {[1, -1].map((k) => (
+              <mesh key={k} position={[0, 0, 0.002]} rotation={[0, 0, (Math.PI / 4) * k]}>
+                <planeGeometry args={[0.62, 0.07]} />
+                <meshBasicMaterial color="#ff3d3d" toneMapped={false} />
+              </mesh>
+            ))}
+          </>
+        )}
       </Billboard>
+      {dead && dead.respawnIn !== null && (
+        <Html center position={[0, 0.52, 0]} distanceFactor={11} className="map3d-label respawn">
+          {dead.respawnIn}s
+        </Html>
+      )}
     </group>
   );
 }
 
 function Players({ replay, t, trails, catalog, follow }: { replay: Replay; t: number; trails: boolean; catalog: Catalog; follow: number | null }) {
   const frame = frameAt(replay, t);
+  const states = playersAt(replay, t);
   return (
     <>
       {replay.players.map((p) => {
-        const at = frame[p.slot];
+        const st = states[p.slot];
+        const fell = st?.dead ? deathSpot(replay, p.slot, t) : null;
+        const at = fell ?? frame[p.slot];
         if (!at) return null;
         const [x, , z] = toWorld(at.x, at.y);
         const color = side(p.side);
         const url = p.champion ? iconUrl(catalog, p.champion) : null;
-        const trail = trails ? trailOf(replay, p.slot, t, 20) : [];
+        const trail = trails && !st?.dead ? trailOf(replay, p.slot, t, 20) : [];
+        const lift = st?.dead ? 0.32 : follow === p.slot ? 0.95 : 0.75;
         return (
           <group key={p.slot}>
             {trail.length > 1 && (
@@ -336,7 +403,7 @@ function Players({ replay, t, trails, catalog, follow }: { replay: Replay; t: nu
             )}
             {url ? (
               <Suspense fallback={<mesh position={[x, 0.75, z]}><sphereGeometry args={[0.2, 16, 16]} /><meshBasicMaterial color={color} /></mesh>}>
-                <ChampToken url={url} color={follow === p.slot ? "#ffe066" : color} position={[x, follow === p.slot ? 0.95 : 0.75, z]} />
+                <ChampToken url={url} color={follow === p.slot ? "#ffe066" : color} position={[x, lift, z]} dead={st?.dead ? { respawnIn: st.respawnIn } : undefined} />
               </Suspense>
             ) : (
               <mesh position={[x, 0.4, z]}>
@@ -416,6 +483,8 @@ export interface Rift3DProps {
 }
 
 export default function Rift3D({ catalog, replay, t = 0, trails = true, ambient = false, laneGlow, glowSide, startTop, className, labels = !replay, follow = null }: Rift3DProps) {
+  const downtime = useMemo(() => (replay ? campDowntime(replay) : null), [replay]);
+  const state = replay && downtime ? mapStateAt(replay, t, downtime) : undefined;
   return (
     <div className={`rift3d ${className ?? ""}`}>
       <Canvas shadows camera={{ position: [0, 12.5, 11.5], fov: 42 }} dpr={[1, 2]} gl={{ antialias: true }}>
@@ -437,9 +506,19 @@ export default function Rift3D({ catalog, replay, t = 0, trails = true, ambient 
         <Water />
         <Lanes glow={laneGlow} />
         <Structures />
-        <Pit at={PITS.dragon} label="dragon" />
-        <Pit at={PITS.baron} label="baron" />
-        <Camps glowSide={glowSide} startTop={startTop} labels={labels} />
+        <Pit at={PITS.dragon} label="dragon" state={state} />
+        <Pit at={PITS.baron} label="baron" state={state} />
+        <Camps glowSide={glowSide} startTop={startTop} labels={labels} alive={state?.camps} />
+        {SCUTTLES.map(([gx, gy], i) => {
+          if (state && !(i === 0 ? state.scuttle.top : state.scuttle.bot)) return null;
+          const [x, , z] = toWorld(gx, gy);
+          return <Scuttle key={gx} at={[x, -0.04, z]} yaw={face(x, z)} />;
+        })}
+        {state?.atakhan &&
+          (() => {
+            const [x, , z] = toWorld(state.atakhan.x, state.atakhan.y);
+            return <Atakhan at={[x, 0, z]} yaw={face(x, z)} kind={state.atakhan.kind} />;
+          })()}
         {replay && <Players replay={replay} t={t} trails={trails} catalog={catalog} follow={follow} />}
         <CameraRig replay={replay} t={t} follow={follow} />
         <OrbitControls makeDefault enablePan={false} minDistance={7} maxDistance={26} maxPolarAngle={1.25} autoRotate={ambient} autoRotateSpeed={0.35} />

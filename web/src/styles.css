@@ -373,3 +373,5 @@ select:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; 
   border: 1px solid rgba(232, 196, 106, 0.45); padding: 3px 7px; border-radius: 999px; }
 .map3d-label.pit { color: #e6d6ff; border-color: rgba(169, 112, 255, 0.6); font-size: 12px; }
 .map3d-label.hot { color: #fff; border-color: #ff5a5a; background: rgba(120, 20, 20, 0.8); }
+.map3d-label.pit.empty { opacity: 0.45; }
+.map3d-label.respawn { color: #fff; border-color: #ff3d3d; background: rgba(90, 14, 14, 0.85); font-size: 12px; }

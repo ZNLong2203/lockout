@@ -244,6 +244,14 @@ positions of all ten players once per second on our own map; a position that was
 (`-1, -1` in the API), never invented, and the key events listed next to the map are only kills, objectives and
 structures from the feed. Unknown players are simply not drawn at that second.
 
+The 3D map shows what was alive at that second. A dead champion stays where it fell, greyed out with a red cross and
+its respawn countdown, from the kill and respawn events. Drakes (with their element), the grubs, the Herald, Baron,
+Atakhan and the river crabs appear and disappear with the feed's own spawn and kill events. Atakhan's pit is taken from
+where it died in that game, because its spawn event has no position. The feed has no event for the other jungle camps,
+so the map **estimates** them: a camp spawns at 1:30, counts as cleared once a player has stood within 550 units of it
+for 4 seconds in a row, and returns after 5:00 (buffs) or 2:15 (other camps). A fight on a camp can clear it early on
+the map; nothing else in Lockout uses these estimates.
+
 Two choices keep the profile page honest: jungle routes are grouped by their **first three camps** (complete routes
 are almost all unique, so they would give every route a sample size of one), and the **event filter** restricts the
 games count, the jungle profile and the objective figures but not the tells, which are tested once over all games

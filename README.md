@@ -15,7 +15,7 @@ Coaches track this in spreadsheets. Lockout reads the official GRID feeds (745 s
 - **And ours?** The same view for our own lineup: which champions to save for game 3 or 4, plus a composition check (damage split, frontline, engage, range) under each side's picks.
 - **Would it have worked?** **Replay a real series** draft by draft: the co-pilot sees only what was known before game 1, and every step it called gets a check mark.
 - **What does that pick mean on the map?** A *macro bridge* from a jungle champion to how that jungler opens and where they show up first, from player trajectories.
-- **What are their tells?** Evidence-backed conditional behaviours (objective trades, jungle start versus first objective, first gank by lane), compared with the league and corrected for multiple comparisons. Every tell opens the games behind it, and each game opens in a **2D replay** at the moment it was triggered.
+- **What are their tells?** Evidence-backed conditional behaviours (objective trades, jungle start versus first objective, first gank by lane), compared with the league and corrected for multiple comparisons. Every tell opens the games behind it, and each game opens in a **2D or 3D replay** at the moment it was triggered, with fallen champions and their respawn timers, and the drakes, grubs, Herald, Baron and Atakhan on the map while they are up.
 - **What repeats in their drafts?** Pick and ban habits tested against the league, what their bans aim at, and how their picks shift as a Fearless series goes on.
 
 Every number carries its sample size, and the backtest is reported as it came out, including what it does *not* show.
@@ -29,7 +29,7 @@ See [docs/methodology.md](docs/methodology.md).
 | **Fearless budget (what-if on hover)** | **Real series replay, scored step by step** | |
 | [![Fearless budget](docs/img/budget.jpg)](docs/img/budget.jpg) | [![Real series replay](docs/img/series-replay.jpg)](docs/img/series-replay.jpg) | |
 
-*Screenshots show the built-in synthetic demo data: invented teams and numbers, nothing from the licensed data. The API's own documentation page is in [docs/img/api-docs.jpg](docs/img/api-docs.jpg).*
+*Screenshots show the public demo: real teams, players and drafts from Leaguepedia (CC BY-SA 3.0), nothing from the licensed data. Only the replay's movement and events are simulated, since only GRID has player positions. The API's own documentation page is in [docs/img/api-docs.jpg](docs/img/api-docs.jpg).*
 
 
 ## Run it

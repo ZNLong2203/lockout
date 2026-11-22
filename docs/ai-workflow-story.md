@@ -62,7 +62,7 @@ All of it was built with **JetBrains Air**, running the Claude agent, inside **P
   - a Fearless budget forecast;
   - a composition check;
   - a replay of real series.
-- 14 typed API endpoints and a test suite on synthetic data, all green in CI.
+- 15 typed API endpoints and a test suite on synthetic data, all green in CI.
 - A public demo anyone can open: https://znlong2203.github.io/lockout/
 - **[owner]** Time taken compared with your own estimate by hand.
 

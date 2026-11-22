@@ -95,4 +95,4 @@ Match data is provided by GRID. This project is not endorsed by Riot Games or Cl
 
 ## License
 
-[MIT](LICENSE), covering the source code only.
+[MIT](LICENSE), covering the source code only. It does not cover the GRID / Cloud9 hackathon data, which is proprietary, licensed separately and never part of this repository. The public demo data in `web/public/data` comes from Leaguepedia under CC BY-SA 3.0.

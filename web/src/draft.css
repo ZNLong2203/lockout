@@ -235,4 +235,3 @@
 .sl-chip:disabled { cursor: default; }
 .sl-chip .champ { border-radius: 50%; }
 .wb-sure { font-size: 0.68rem; padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 18%, transparent); color: #c9efff; }
-.demo-tag { margin-left: 6px; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 1px 6px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--warning) 60%, transparent); color: #ffe7b0; }

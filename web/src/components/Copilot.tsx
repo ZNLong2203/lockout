@@ -118,14 +118,14 @@ export function Copilot({ advice, calls, onApply, onHover, last, deltas }: Props
 }
 
 function CallChip({ calls }: { calls: CallRate }) {
-  if (!calls.total) return null;
+  // the demo's series and pools are invented, so a call rate on them would say nothing about real drafts
+  if (!calls.total || !isLive) return null;
   return (
     <span
       className="call-chip"
       title={`Steps already drafted where the real choice was in the co-pilot's top 3 (and top 10), judged only on what was known before each step. Top 3: ours ${calls.ours.hits}/${calls.ours.total}, theirs ${calls.theirs.hits}/${calls.theirs.total}.`}
     >
       Called <b>{calls.hits}</b>/{calls.total} · top 10 <b>{calls.hits10}</b>
-      {!isLive && <span className="demo-tag">demo data</span>}
     </span>
   );
 }

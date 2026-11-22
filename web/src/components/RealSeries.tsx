@@ -161,10 +161,9 @@ export function RealSeriesBar({ replay, calls, onChange, onExit }: { replay: Rep
         <span className="rs-pos">
           Game {replay.gi + 1}/{replay.truth.length} · step {Math.min(replay.step, ORDER.length)}/20
         </span>
-        {calls.total > 0 && (
+        {isLive && calls.total > 0 && (
           <span className="rs-calls" title="Revealed steps where the real choice was in the co-pilot's top three">
             Co-pilot top 3 <b>{calls.hits}</b>/{calls.total} ({pct(calls.hits / calls.total)}) · top 10 <b>{calls.hits10}</b> ({pct(calls.hits10 / calls.total)})
-            {!isLive && <span className="demo-tag" title="The demo series and pools are invented, so this rate says nothing about real drafts. On real series: 40% top 3, 73% top 10 (README).">demo data</span>}
           </span>
         )}
         <button type="button" className="ghost" onClick={onExit}>

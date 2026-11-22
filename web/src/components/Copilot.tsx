@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
+import { isLive } from "../api/client";
 import { Check, Crosshair, Sparkles, X } from "lucide-react";
 import type { CallRate, StepAdvice, Suggestion } from "../lib/copilot";
 import { ROLE_SHORT } from "./ChampIcon";
@@ -124,6 +125,7 @@ function CallChip({ calls }: { calls: CallRate }) {
       title={`Steps already drafted where the real choice was in the co-pilot's top 3 (and top 10), judged only on what was known before each step. Top 3: ours ${calls.ours.hits}/${calls.ours.total}, theirs ${calls.theirs.hits}/${calls.theirs.total}.`}
     >
       Called <b>{calls.hits}</b>/{calls.total} · top 10 <b>{calls.hits10}</b>
+      {!isLive && <span className="demo-tag">demo data</span>}
     </span>
   );
 }

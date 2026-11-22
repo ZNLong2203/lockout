@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight, History, Info, Pause, Play, SkipBack, SkipForward, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { fetchSeriesDraft, fetchSeriesList } from "../api/client";
+import { fetchSeriesDraft, fetchSeriesList, isLive } from "../api/client";
 import type { ContextTeam, SeriesDraft, SeriesSummary } from "../api/types";
 import type { CallRate } from "../lib/copilot";
 import { ORDER, pct } from "../lib/draft";
@@ -164,6 +164,7 @@ export function RealSeriesBar({ replay, calls, onChange, onExit }: { replay: Rep
         {calls.total > 0 && (
           <span className="rs-calls" title="Revealed steps where the real choice was in the co-pilot's top three">
             Co-pilot top 3 <b>{calls.hits}</b>/{calls.total} ({pct(calls.hits / calls.total)}) · top 10 <b>{calls.hits10}</b> ({pct(calls.hits10 / calls.total)})
+            {!isLive && <span className="demo-tag" title="The demo series and pools are invented, so this rate says nothing about real drafts. On real series: 40% top 3, 73% top 10 (README).">demo data</span>}
           </span>
         )}
         <button type="button" className="ghost" onClick={onExit}>

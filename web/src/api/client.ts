@@ -3,6 +3,20 @@ import { DEMO_TEAMS, demoEvidence, demoProfile, demoTendencies } from "../demo/s
 import { DEMO_META, DEMO_SERIES, DEMO_SERIES_LIST, DEMO_WIN_MODEL, demoSeriesDraft } from "../demo/series";
 import type { SeriesContext } from "../lib/draft";
 import { MOCK_BACKTEST, mockPlan } from "./fixtures";
+import {
+  GRID_ONLY,
+  staticBacktest,
+  staticChampions,
+  staticContext,
+  staticLogos,
+  staticRanker,
+  staticReplay,
+  staticSeriesDraft,
+  staticSeriesList,
+  staticTeams,
+  staticTendencies,
+  staticWinModel,
+} from "./static";
 import type {
   ChampionStats,
   CopilotRanker,
@@ -21,8 +35,11 @@ import type {
   WinModel,
 } from "./types";
 
-// Set VITE_API=live (and run `lockout serve`) to use the real API; otherwise the app runs on synthetic data.
-export const isLive = import.meta.env.VITE_API === "live";
+// VITE_API=live: the local API on the licensed GRID data (`lockout serve`).
+// VITE_API=static: the hosted demo, real public data (Leaguepedia) as static files, no server.
+// Otherwise: synthetic demo data.
+export const isStatic = import.meta.env.VITE_API === "static";
+export const isLive = import.meta.env.VITE_API === "live" || isStatic;
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -54,12 +71,14 @@ export async function fetchPlan(q: PlanQuery): Promise<SeriesPlanResponse> {
 }
 
 export async function fetchBacktest(): Promise<DraftBacktest> {
+  if (isStatic) return staticBacktest();
   return isLive ? getJson<DraftBacktest>("/api/draft/backtest") : MOCK_BACKTEST;
 }
 
 /** Teams, player pools, the opponent's recent drafts and jungle bridges. Games of the live series are entered by the coach. */
 export async function fetchContext(team = "", opponent = ""): Promise<SeriesContext> {
   if (!isLive) return DEMO_SERIES;
+  if (isStatic) return staticContext(team, opponent);
   const params = new URLSearchParams({ team, opponent });
   const ctx = await getJson<Omit<SeriesContext, "games">>(`/api/series/context?${params}`);
   return { ...ctx, games: [] };
@@ -67,33 +86,35 @@ export async function fetchContext(team = "", opponent = ""): Promise<SeriesCont
 
 /** Team logo URLs by name; never fails (the UI falls back to monograms). Demo teams are fictional, so none. */
 export const fetchLogos = (): Promise<Record<string, string>> =>
-  isLive ? getJson<TeamLogos>("/api/logos").then((r) => r.logos).catch(() => ({})) : Promise.resolve({});
+  isStatic ? staticLogos() : isLive ? getJson<TeamLogos>("/api/logos").then((r) => r.logos).catch(() => ({})) : Promise.resolve({});
 
-export const fetchTeams = (): Promise<TeamSummary[]> => (isLive ? getJson<TeamSummary[]>("/api/teams") : demo(() => DEMO_TEAMS));
+export const fetchTeams = (): Promise<TeamSummary[]> => (isStatic ? staticTeams() : isLive ? getJson<TeamSummary[]>("/api/teams") : demo(() => DEMO_TEAMS));
 
 export function fetchProfile(teamId: string, event: string | null = null): Promise<TeamProfile> {
   if (!isLive) return demo(() => demoProfile(teamId, event));
+  if (isStatic) return Promise.reject(new Error(GRID_ONLY));
   return getJson<TeamProfile>(`/api/teams/${enc(teamId)}/profile${event ? `?event=${enc(event)}` : ""}`);
 }
 
 export const fetchEvidence = (teamId: string, templateId: string): Promise<EvidenceItem[]> =>
-  isLive ? getJson<EvidenceItem[]>(`/api/teams/${enc(teamId)}/tells/${enc(templateId)}/evidence`) : demo(() => demoEvidence(teamId, templateId));
+  isStatic ? Promise.reject(new Error(GRID_ONLY)) : isLive ? getJson<EvidenceItem[]>(`/api/teams/${enc(teamId)}/tells/${enc(templateId)}/evidence`) : demo(() => demoEvidence(teamId, templateId));
 
 export const fetchTendencies = (teamId: string, scope: TendencyScope = "all"): Promise<TeamDraftTendencies> =>
-  isLive ? getJson<TeamDraftTendencies>(`/api/teams/${enc(teamId)}/draft-tendencies?scope=${scope}`) : demo(() => demoTendencies(teamId, scope));
+  isStatic ? staticTendencies(teamId, scope) : isLive ? getJson<TeamDraftTendencies>(`/api/teams/${enc(teamId)}/draft-tendencies?scope=${scope}`) : demo(() => demoTendencies(teamId, scope));
 
-/** A game's positions and key events. In demo mode every id opens the same synthetic replay. */
-export const fetchReplay = (gameId: string): Promise<Replay> => (isLive ? getJson<Replay>(`/api/games/${enc(gameId)}/replay`) : demo(demoReplay));
+/** A game's positions and key events. In demo and static mode every id opens the same simulated replay. */
+export const fetchReplay = (gameId: string): Promise<Replay> => (isStatic ? staticReplay(gameId) : isLive ? getJson<Replay>(`/api/games/${enc(gameId)}/replay`) : demo(demoReplay));
 
 export const DEMO_GAME_ID = DEMO_REPLAY_ID;
 
 /** League meta per champion (90 days). Never fails: the co-pilot falls back to pools only. */
 export const fetchChampions = (): Promise<ChampionStats[]> =>
-  isLive ? getJson<ChampionStats[]>("/api/champions").catch(() => []) : Promise.resolve(DEMO_META);
+  isStatic ? staticChampions() : isLive ? getJson<ChampionStats[]>("/api/champions").catch(() => []) : Promise.resolve(DEMO_META);
 
 /** Finished real series, newest first, for a team (and optionally its opponent). */
 export function fetchSeriesList(team: string, opponent = ""): Promise<SeriesSummary[]> {
   if (!isLive) return Promise.resolve(DEMO_SERIES_LIST);
+  if (isStatic) return staticSeriesList(team, opponent);
   const params = new URLSearchParams({ team, limit: "40" });
   if (opponent) params.set("opponent", opponent);
   return getJson<SeriesSummary[]>(`/api/series?${params}`);
@@ -101,11 +122,12 @@ export function fetchSeriesList(team: string, opponent = ""): Promise<SeriesSumm
 
 /** A real series' drafts plus the context as it was before game 1. */
 export const fetchSeriesDraft = (seriesId: string, ours = ""): Promise<SeriesDraft> =>
-  isLive ? getJson<SeriesDraft>(`/api/series/${enc(seriesId)}/draft${ours ? `?ours=${enc(ours)}` : ""}`) : demo(demoSeriesDraft);
+  isStatic ? staticSeriesDraft(seriesId, ours) : isLive ? getJson<SeriesDraft>(`/api/series/${enc(seriesId)}/draft${ours ? `?ours=${enc(ours)}` : ""}`) : demo(demoSeriesDraft);
 
 /** The live-draft win model for a matchup, fitted on games before `before` (ISO). Null if unavailable. */
 export function fetchWinModel(team: string, opponent: string, before?: string): Promise<WinModel | null> {
   if (!isLive) return Promise.resolve({ ...DEMO_WIN_MODEL, ours_id: team || "alpha", opponent_id: opponent || "bravo" });
+  if (isStatic) return staticWinModel(team, opponent, before).catch(() => null);
   const params = new URLSearchParams({ team, opponent });
   if (before) params.set("before", before);
   return getJson<WinModel>(`/api/draft/win-model?${params}`).catch(() => null);
@@ -113,4 +135,4 @@ export function fetchWinModel(team: string, opponent: string, before?: string): 
 
 /** The co-pilot's tree re-ranker from the local API; null in demo mode or before `lockout copilot-train`. */
 export const fetchCopilotRanker = (): Promise<CopilotRanker | null> =>
-  isLive ? getJson<CopilotRanker>("/api/draft/copilot-ranker").catch(() => null) : Promise.resolve(null);
+  isStatic ? staticRanker() : isLive ? getJson<CopilotRanker>("/api/draft/copilot-ranker").catch(() => null) : Promise.resolve(null);

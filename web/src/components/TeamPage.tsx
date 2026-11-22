@@ -40,7 +40,7 @@ function Fact({ icon, title, value, note, champ }: { icon: ReactNode; title: str
 const distinctive = (items: DraftTendencyItem[]) =>
   [...items].filter((t) => t.direction === "above").sort((a, b) => a.q - b.q || b.rate - a.rate)[0];
 
-function ThreeThings({ profile, tendencies }: { profile: TeamProfile | null; tendencies: TeamDraftTendencies | null }) {
+function ThreeThings({ profile, tendencies, noMap }: { profile: TeamProfile | null; tendencies: TeamDraftTendencies | null; noMap: boolean }) {
   const ban = tendencies ? distinctive(tendencies.bans) : undefined;
   const pick = tendencies ? [...tendencies.picks].sort((a, b) => b.count - a.count)[0] : undefined;
   const jg = profile?.jungle;
@@ -76,6 +76,13 @@ function ThreeThings({ profile, tendencies }: { profile: TeamProfile | null; ten
           title="Their jungler"
           value={`Opens ${top >= 0.5 ? "top" : "bot"}-side · ${pct(Math.max(top, 1 - top))}`}
           note={`First seen ${lane[0]} ${pct(lane[1])} · ${jg.games} games`}
+        />
+      ) : noMap && tendencies ? (
+        <Fact
+          icon={<MapIcon size={16} />}
+          title="Games in the data"
+          value={`${tendencies.team_games} games`}
+          note="Map habits need player positions: local build only"
         />
       ) : (
         <div className="fact skeleton" />
@@ -233,14 +240,14 @@ export function TeamPage({ teamId, tab, teams, ours }: Props) {
       </header>
 
       <div className="app team-body">
-        {error && (
-          <p className="card err" role="alert">
+        {error && (tab === "map" || tab === "tells") && (
+          <p className="card note" role="status">
             {error}
           </p>
         )}
         {tab === "overview" && (
           <>
-            <ThreeThings profile={profile} tendencies={tendencies} />
+            <ThreeThings profile={profile} tendencies={tendencies} noMap={!!error} />
             {tendencies && (
               <div className="grid2">
                 <TopChamps title="Comfort picks" items={[...tendencies.picks].sort((a, b) => b.count - a.count)} />

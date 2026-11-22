@@ -7,7 +7,7 @@ import type { ChampionStats, SeriesDraft } from "../src/api/types";
 import { LEARNED, advise, rankerRow, type Trace } from "../src/lib/copilot";
 import type { GameDraft } from "../src/lib/draft";
 
-const CACHE = new URL("../../private/cache/eval/", import.meta.url).pathname;
+const CACHE = process.env.EVAL_DIR ?? new URL("../../private/cache/eval/", import.meta.url).pathname; // EVAL_DIR: e.g. the public cache
 const HOLD = Number(process.env.HOLD ?? 80);
 const TOP = Number(process.env.TOP ?? 60); // candidates kept per step: the linear model's top N (the trees re-rank them)
 const all = JSON.parse(readFileSync(`${CACHE}series_all.json`, "utf8")) as SeriesDraft[];

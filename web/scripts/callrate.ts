@@ -13,7 +13,7 @@ import type { ChampionStats, CopilotRanker, SeriesDraft, SeriesSummary } from ".
 
 const API = process.env.API ?? "http://127.0.0.1:8000";
 const HOLD = Number(process.env.HOLD ?? 80);
-const CACHE = new URL("../../private/cache/eval/", import.meta.url).pathname;
+const CACHE = process.env.EVAL_DIR ?? new URL("../../private/cache/eval/", import.meta.url).pathname; // EVAL_DIR: e.g. the public cache
 const get = async <T>(path: string): Promise<T> => (await fetch(API + path)).json() as Promise<T>;
 
 mkdirSync(CACHE, { recursive: true });
@@ -23,7 +23,7 @@ if (existsSync(file)) all = JSON.parse(readFileSync(file, "utf8")) as SeriesDraf
 else {
   const list = (await get<SeriesSummary[]>("/api/series?limit=1000")).filter((s) => s.games >= 2);
   all = [];
-  for (const s of list) all.push(await get<SeriesDraft>(`/api/series/${s.series_id}/draft`));
+  for (const s of list) all.push(await get<SeriesDraft>(`/api/series/${encodeURIComponent(s.series_id)}/draft`));
   writeFileSync(file, JSON.stringify(all));
 }
 const drafts = all.slice(0, HOLD);

@@ -1,6 +1,6 @@
 import { CalendarDays, Clock3, ExternalLink, Trophy } from "lucide-react";
 import { useEffect, useState } from "react";
-import { fetchContext, fetchReplay, isLive } from "../api/client";
+import { fetchContext, fetchReplay, isLive, isStatic } from "../api/client";
 import type { Replay, TeamSummary } from "../api/types";
 import { clock, type PastGame } from "../lib/draft";
 import { ReplayPlayer } from "./ReplayPlayer";
@@ -73,7 +73,8 @@ function MatchBanner({ replay }: { replay: Replay }) {
             <Trophy size={14} aria-hidden /> {winner}
           </span>
         )}
-        {isLive && (
+        {isStatic && <span className="sim-note" title="Teams, players, champions and the winner are real (Leaguepedia). Positions, kills and objectives are simulated: only the licensed GRID data has them, and it stays local.">Simulated replay · real teams and champions</span>}
+        {isLive && !isStatic && (
           <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(vod)}`} target="_blank" rel="noreferrer noopener">
             Find the broadcast <ExternalLink size={13} aria-hidden />
           </a>

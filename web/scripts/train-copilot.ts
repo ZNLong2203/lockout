@@ -11,7 +11,7 @@ import { FEATURES, LEARNED, advise, type Trace } from "../src/lib/copilot";
 import type { GameDraft } from "../src/lib/draft";
 
 const API = process.env.API ?? "http://127.0.0.1:8000";
-const CACHE = new URL("../../private/cache/eval/", import.meta.url).pathname;
+const CACHE = process.env.EVAL_DIR ?? new URL("../../private/cache/eval/", import.meta.url).pathname; // EVAL_DIR: e.g. the public cache
 const get = async <T>(path: string): Promise<T> => (await fetch(API + path)).json() as Promise<T>;
 
 /** Every finished multi-game series, newest first (cached). */
@@ -21,7 +21,7 @@ async function loadAll(): Promise<SeriesDraft[]> {
   if (existsSync(file)) return JSON.parse(readFileSync(file, "utf8")) as SeriesDraft[];
   const list = (await get<SeriesSummary[]>("/api/series?limit=1000")).filter((s) => s.games >= 2);
   const out: SeriesDraft[] = [];
-  for (const s of list) out.push(await get<SeriesDraft>(`/api/series/${s.series_id}/draft`));
+  for (const s of list) out.push(await get<SeriesDraft>(`/api/series/${encodeURIComponent(s.series_id)}/draft`));
   writeFileSync(file, JSON.stringify(out));
   return out;
 }

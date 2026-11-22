@@ -1,6 +1,6 @@
 import { PlayCircle, Radar, Search, Swords } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { fetchLogos, fetchTeams, isLive } from "./api/client";
+import { fetchLogos, fetchTeams, isLive, isStatic } from "./api/client";
 import type { TeamSummary } from "./api/types";
 import { CommandPalette } from "./components/CommandPalette";
 import { DraftRoom } from "./components/DraftRoom";
@@ -102,6 +102,12 @@ export default function App() {
       {route.page === "replay" && <ReplayPage gameId={route.game} startAt={route.t} teams={teams} ours={ours} />}
 
       <footer className="app legal">
+        {isStatic && (
+          <p className="demo-note">
+            Public demo: teams, drafts and results from Leaguepedia (lol.fandom.com, CC BY-SA 3.0). Player positions in replays are simulated; the
+            GRID-based scouting runs in the local build.
+          </p>
+        )}
         {!isLive && (
           <p className="demo-note">
             You are viewing the demo: teams, players and numbers are synthetic. The licensed GRID data runs only locally (see the README).

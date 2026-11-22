@@ -253,3 +253,5 @@ details.more[open] > summary svg { transform: rotate(180deg); }
 .seg button.on { background: rgba(56, 189, 248, 0.18); color: var(--ink); }
 
 .demo-note { margin: 0 0 8px; padding: 6px 10px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--warning) 50%, transparent); color: var(--ink-2); }
+.sim-note { padding: 1px 8px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--warning) 50%, transparent); color: #ffe7b0; font-size: 0.78rem; }
+.card.note { color: var(--ink-2); border-left: 3px solid var(--accent); }

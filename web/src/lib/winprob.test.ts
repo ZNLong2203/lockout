@@ -29,3 +29,14 @@ describe("live win chance", () => {
     expect(champEdge(8, 10)).toBeLessThan(0.3);
   });
 });
+
+describe("static Elo history", () => {
+  it("takes the last rating before the time and pulls it back after a long break", async () => {
+    const { eloBefore } = await import("../api/static");
+    const h: [string, number][] = [["2026-01-01T00:00:00", 1600], ["2026-02-01T00:00:00", 1640]];
+    expect(eloBefore(h, new Date("2026-01-15T00:00:00"))).toBe(1600);
+    expect(eloBefore(h, new Date("2026-02-10T00:00:00"))).toBe(1640);
+    expect(eloBefore(h, new Date("2026-06-01T00:00:00"))).toBe(1570); // halfway back to 1500 after 30+ days
+    expect(eloBefore([], new Date())).toBe(1500);
+  });
+});

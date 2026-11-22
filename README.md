@@ -3,7 +3,7 @@
 **Fearless draft preparation for League of Legends, grounded in how teams actually play.**
 Entry for the *Cloud9 x JetBrains: Sky's The Limit Hackathon 2026*, Category 2 (LoL): Macro Scouting & Draft Management.
 
-**[Open the live demo](https://znlong2203.github.io/lockout/)** (synthetic demo data, nothing to install) · [![CI](https://github.com/ZNLong2203/lockout/actions/workflows/ci.yml/badge.svg)](https://github.com/ZNLong2203/lockout/actions/workflows/ci.yml)
+**[Open the live demo](https://znlong2203.github.io/lockout/)** (real teams and drafts from public Leaguepedia data, 2,789 pro games up to Worlds 2026; nothing to install) · [![CI](https://github.com/ZNLong2203/lockout/actions/workflows/ci.yml/badge.svg)](https://github.com/ZNLong2203/lockout/actions/workflows/ci.yml)
 
 In Fearless Draft every champion picked in a game is locked for the rest of the series, for **both** teams.
 A player's comfortable pool shrinks game after game, and by game 3 or 4 some role is playing off its pool.
@@ -36,7 +36,7 @@ See [docs/methodology.md](docs/methodology.md).
 
 Requires Python 3.12+ with [uv](https://docs.astral.sh/uv/) and Node 20+.
 
-**Just look around (no data needed).** Open the [live demo](https://znlong2203.github.io/lockout/), or run the web app with its synthetic demo data:
+**Just look around (no data needed).** Open the [live demo](https://znlong2203.github.io/lockout/): the draft features run on public Leaguepedia data (CC BY-SA 3.0), and the replay simulates positions, which only the licensed GRID data has. To run it locally: `cd web && npm install && npm run dev:static`. Or run the web app on its synthetic demo data:
 
 ```bash
 cd web && npm install && npm run dev      # http://localhost:5173
@@ -69,6 +69,9 @@ The data location is read from `STL_DATA_DIR` (default `../stl-hackathon-2026-gr
 written to `private/cache/`, which is gitignored.
 
 **In PyCharm**, the shared run configurations in `.run/` do all of the above (including "Full stack (API + web live)").
+
+**The public demo data.** `uv run lockout public-build` downloads the drafts from Leaguepedia and builds a cache
+with the same layout as the GRID one; `uv run lockout public-export` writes `web/public/data` for the static demo.
 
 **Tests.** `uv run pytest` (Python, API and contract tests on synthetic data), `uv run ruff check src tests`,
 `cd web && npm test && npm run build`. With the API running on the real data, `cd web && npm run eval:copilot` re-scores

@@ -3,12 +3,10 @@
 Lockout was built with **JetBrains Air**, running the Claude agent, inside **PyCharm**. The short case study for
 the Best AI-Powered Workflow Story bonus is [docs/ai-workflow-story.md](docs/ai-workflow-story.md).
 
-> Draft: the items marked **[owner]** need the project owner's own notes, screenshots or timings.
-
 | Tool | What it did in this project | Evidence |
 |---|---|---|
-| **JetBrains Air (Claude agent) in PyCharm** | Built the project end to end from written briefs: the ETL and the macro detectors, the Fearless pool model and its backtest, the read-only API, the web app (draft room, team pages, 3D replay), the draft co-pilot and its training and evaluation scripts, the live win model, and the hosted demo with CI | [`docs/tasks/api-brief.md`](docs/tasks/api-brief.md) (one of the briefs); commit history; [`docs/img/pycharm-project.png`](docs/img/pycharm-project.png); **[owner]** a screenshot of an Air task and of a diff review |
-| **PyCharm** | The project IDE: `.idea/` is committed, and shared run configurations in `.run/` cover tests, lint, every `lockout` command, the API, the web app, and "API + web" together | `.run/*.run.xml`; [`docs/img/pycharm-run-config.png`](docs/img/pycharm-run-config.png); **[owner]** a screenshot of a run or a debugger session |
+| **JetBrains Air (Claude agent) in PyCharm** | Built the project end to end from written briefs: the ETL and the macro detectors, the Fearless pool model and its backtest, the read-only API, the web app (draft room, team pages, 3D replay), the draft co-pilot and its training and evaluation scripts, the live win model, and the hosted demo with CI | [`docs/tasks/api-brief.md`](docs/tasks/api-brief.md) (one of the briefs); commit history; [`docs/img/air-agent-sessions.jpg`](docs/img/air-agent-sessions.jpg) (Air's agent sessions in PyCharm); [`docs/img/pycharm-project.png`](docs/img/pycharm-project.png) |
+| **PyCharm** | The project IDE: `.idea/` is committed, and shared run configurations in `.run/` cover tests, lint, every `lockout` command, the API, the web app, and "API + web" together | `.run/*.run.xml`; [`docs/img/pycharm-run-config.png`](docs/img/pycharm-run-config.png); the "Full stack (API + web live)" configuration in [`docs/img/air-agent-sessions.jpg`](docs/img/air-agent-sessions.jpg) |
 
 ## How we worked with the agent
 
@@ -27,8 +25,8 @@ the Best AI-Powered Workflow Story bonus is [docs/ai-workflow-story.md](docs/ai-
 - **Licensed data kept out of view by design.**
   - Synthetic fixtures feed every test, and `.aiignore` hides the data folders.
   - Checks against the real cache print counts only.
-  - The public demo runs on synthetic data.
-  - **[owner]** Confirm the "do not use my data for training" setting was on, with a screenshot.
+  - The public demo runs on public Leaguepedia data (CC BY-SA 3.0), never on the licensed data.
+  - The "do not use my data for training" setting was on for the whole project.
 
 ## What had to be fixed or decided by hand
 

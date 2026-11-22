@@ -52,7 +52,8 @@ All of it was built with **JetBrains Air**, running the Claude agent, inside **P
 **4. Licensed data kept out of view by design.**
 - Synthetic fixtures feed every test, and `.aiignore` hides the data folders.
 - Checks against the real cache print counts only.
-- The public demo runs on invented teams.
+- The public demo runs on public Leaguepedia data (CC BY-SA 3.0), never on the licensed data.
+- The "do not use my data for training" setting was on for the whole project.
 
 ## Results
 
@@ -62,9 +63,9 @@ All of it was built with **JetBrains Air**, running the Claude agent, inside **P
   - a Fearless budget forecast;
   - a composition check;
   - a replay of real series.
-- 16 typed API endpoints and a test suite on synthetic data, all green in CI.
+- 16 typed API endpoints and a test suite on synthetic fixtures, all green in CI.
 - A public demo anyone can open: https://znlong2203.github.io/lockout/
-- **[owner]** Time taken compared with your own estimate by hand.
+- About **four days** of work, against an estimate of about **a month** to write it by hand.
 
 ## What we would tell another team
 

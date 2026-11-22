@@ -61,7 +61,9 @@ Three hash-routed pages in one static bundle (no server rewrite rules, every vie
 - The map is our own stylised Summoner's Rift drawn from the measured geometry (`src/lib/map.ts`), shared by the
   jungle map and the replay. Champion portraits come from Riot's Data Dragon at runtime and are never stored.
 - `src/api/types.ts` mirrors `schemas.py`; `tests/test_contract.py` fails when the two drift apart.
-- Without `VITE_API=live` the app runs on **synthetic** demo data (`src/demo/`), clearly badged as such.
+- `VITE_API=live` reads the local API. `VITE_API=static` (the GitHub Pages build) reads public Leaguepedia data
+  exported to `web/public/data`, with simulated replay positions. With neither, the app runs on **synthetic** demo
+  data (`src/demo/`).
 
 ## Testing
 
@@ -80,5 +82,5 @@ each `lockout` command, the API, the web app, and a compound "Full stack (API + 
 ## Data licence
 
 The data repo lives outside this project (`STL_DATA_DIR`). All derived data goes to `private/cache/`, which is
-gitignored, and `.aiignore` keeps AI tools away from it. Only code, documentation, charts and screenshots of
-synthetic demo data are committed. See [../AGENTS.md](../AGENTS.md).
+gitignored, and `.aiignore` keeps AI tools away from it. Only code, documentation, charts, public Leaguepedia
+exports and screenshots without licensed data are committed. See [../AGENTS.md](../AGENTS.md).
